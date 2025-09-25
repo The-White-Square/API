@@ -1,25 +1,30 @@
-var builder = WebApplication.CreateBuilder(args);
-
-// Add services to the container.
+﻿var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+    // Show detailed exceptions while developing
+    app.UseDeveloperExceptionPage();
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
 
-app.UseAuthorization();
+// Serve /wwwroot
+app.UseStaticFiles();
 
+app.UseAuthorization();
 app.MapControllers();
+
+// Make sure that wwwroot/images exists
+var env = app.Services.GetRequiredService<IWebHostEnvironment>();
+var imagesRoot = Path.Combine(env.WebRootPath ?? "wwwroot", "images");
+Directory.CreateDirectory(imagesRoot);
 
 app.Run();
