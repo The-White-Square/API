@@ -1,4 +1,8 @@
-﻿var builder = WebApplication.CreateBuilder(args);
+﻿using GameApp.Service;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddSingleton<LobbyService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
