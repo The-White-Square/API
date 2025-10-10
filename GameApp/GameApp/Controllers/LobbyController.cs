@@ -46,5 +46,18 @@ namespace GameApp.Controllers
             return BadRequest("Lobby not found");
             
         }
+        // return lobby selected image, assigns if not yet assigned
+        [HttpGet("{lobbyId}/image")]
+        public ActionResult<ImageDto> GetLobbyImage(string lobbyId)
+        {
+            if (!_lobbiesService.LobbyExists(lobbyId))
+                return NotFound("Lobby not found");
+
+            var dto = _lobbiesService.GetOrAssignLobbyImage(lobbyId);
+            if (dto is null)
+                return NotFound("No images available.");
+
+            return Ok(dto);
+        }
     }
 }
