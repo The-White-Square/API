@@ -22,12 +22,12 @@ namespace GameApp.Controllers
         }
         
         [HttpPost("join")]
-        async Task<IActionResult> JoinLobby([FromBody] LobbyJoinRequest request)    
+        public async Task<IActionResult> JoinLobby([FromBody] LobbyJoinRequest request)    
         { 
         // if lobbyId == empty -> create lobby
         // if lobbyId right -> add to lobby
         // else error
-            var lobbyId = request.LobbyId;
+            var lobbyId = request.LobbyId.ToLower();
             if (string.IsNullOrEmpty(lobbyId))
             {// create
                 Lobby lobby = _lobbiesService.CreateLobby();
