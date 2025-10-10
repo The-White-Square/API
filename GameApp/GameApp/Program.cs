@@ -1,12 +1,15 @@
-﻿using GameApp.Service;
+﻿using GameApp.Hubs;
+using GameApp.Service;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton<LobbyService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+builder.Services.AddSingleton<LobbyService>();
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -25,6 +28,8 @@ app.UseStaticFiles();
 
 app.UseAuthorization();
 app.MapControllers();
+
+app.MapHub<LobbyHub>("/hubs/lobby");
 
 // Make sure that wwwroot/images exists
 var env = app.Services.GetRequiredService<IWebHostEnvironment>();

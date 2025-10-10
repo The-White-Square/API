@@ -1,13 +1,14 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace GameApp.LobbySystem.Requests;
+namespace GameApp.Models.Requests;
 
 public class LobbyJoinRequest
 {
     [Required(ErrorMessage = "Username is required")]
-    public string Username { get; set; }
+    public required string Username { get; set; }
+
+    public string LobbyId { get; set; } = "";
     
-    public string LobbyId { get; set; }
+    public required int IconId { get; set; }
     
-    public byte iconId { get; set; }
 }

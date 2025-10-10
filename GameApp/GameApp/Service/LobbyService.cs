@@ -7,14 +7,8 @@ namespace GameApp.Service;
 
 public class LobbyService
 {
-    private readonly Dictionary<String, Lobby> _lobbies = new();
+    private readonly Dictionary<string, Lobby> _lobbies = new();
     
-    private readonly IHubContext<LobbyHub> _hubContext;
-
-    public LobbyService(IHubContext<LobbyHub> hubContext)
-    {
-        _hubContext = hubContext; 
-    }
 
     public Lobby GetLobby(string lobbyId) =>  _lobbies[lobbyId]; //returns lobby or null value
 
@@ -26,8 +20,10 @@ public class LobbyService
 
     public void AddPlayer(Player player, string lobbyId)
     {
-        if(!_lobbies.ContainsKey(lobbyId))
-            _lobbies[lobbyId] = new Lobby(lobbyId); 
+        if (!_lobbies.ContainsKey(lobbyId))
+            CreateLobby();
+        _lobbies[lobbyId].Players.Add(player);
+
     }
 
     public Lobby CreateLobby()
