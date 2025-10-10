@@ -1,25 +1,39 @@
+﻿using GameApp.Hubs;
+using GameApp.Service;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddSingleton<LobbyService>();
+builder.Services.AddSignalR();
+
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+    // Show detailed exceptions while developing
+    app.UseDeveloperExceptionPage();
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
 
-app.UseAuthorization();
+// Serve /wwwroot
+app.UseStaticFiles();
 
+app.UseAuthorization();
 app.MapControllers();
+
+app.MapHub<LobbyHub>("/hubs/lobby");
+
+// Make sure that wwwroot/images exists
+var env = app.Services.GetRequiredService<IWebHostEnvironment>();
+var imagesRoot = Path.Combine(env.WebRootPath ?? "wwwroot", "images");
+Directory.CreateDirectory(imagesRoot);
 
 app.Run();
