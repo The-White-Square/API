@@ -22,7 +22,7 @@ namespace GameApp.Controllers
         }
         
         [HttpPost("join")]
-        async Task<IActionResult> JoinLobby([FromBody] LobbyJoinRequest request)    
+        public async Task<IActionResult> JoinLobby([FromBody] LobbyJoinRequest request)    
         { 
         // if lobbyId == empty -> create lobby
         // if lobbyId right -> add to lobby
@@ -45,6 +45,19 @@ namespace GameApp.Controllers
             // error
             return BadRequest("Lobby not found");
             
+        }
+        // return lobby selected image, assigns if not yet assigned
+        [HttpGet("{lobbyId}/image")]
+        public ActionResult<ImageDto> GetLobbyImage(string lobbyId)
+        {
+            if (!_lobbiesService.LobbyExists(lobbyId))
+                return NotFound("Lobby not found");
+
+            var dto = _lobbiesService.GetOrAssignLobbyImage(lobbyId);
+            if (dto is null)
+                return NotFound("No images available.");
+
+            return Ok(dto);
         }
     }
 }

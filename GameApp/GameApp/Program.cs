@@ -11,6 +11,9 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<LobbyService>();
 builder.Services.AddSignalR();
 
+builder.Services.AddSingleton<GalleryService>();
+builder.Services.AddSingleton<LobbyService>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
