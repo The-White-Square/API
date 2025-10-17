@@ -1,6 +1,7 @@
 using GameApp.Controllers;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using GameApp.Service.Extensions;
 
 namespace GameApp.Service;
 
@@ -33,9 +34,9 @@ public class GalleryService
             .Where(f => AllowedExtensions.Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase))
             .ToList();
 
-        if (files.Count == 0) return null;
+        var pick = files.GetRandom();
+        if (pick is null) return null;
 
-        var pick = files[Random.Shared.Next(files.Count)];
         return new ImageDto(
             Id: Path.GetFileName(pick),
             Url: $"/images/{Path.GetFileName(pick)}",
