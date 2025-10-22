@@ -7,6 +7,8 @@ public class Player
     public PlayerRole Role { get; set; } = PlayerRole.None;
     public int iconId { get; set; } = 0;
 
+    public string? ConnectionId { get; set; } // SignalR connection id
+
     public Player(string displayName, int iconId)
     {
         this.DisplayName = displayName;
