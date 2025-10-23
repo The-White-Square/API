@@ -57,7 +57,7 @@ app.MapControllers();
 // Map the lobby SignalR hub
 app.MapHub<LobbyHub>("/hubs/lobby");
 
-// Ensure images folder exists so GalleryService / static file serving works
+// make sure images folder exists so GalleryService / static files works
 var env = app.Services.GetRequiredService<IWebHostEnvironment>();
 var imagesRoot = Path.Combine(env.WebRootPath ?? "wwwroot", "images");
 Directory.CreateDirectory(imagesRoot);
