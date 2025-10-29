@@ -54,9 +54,9 @@ public class LobbyHub : Hub
 
         // Notify individual clients of their roles
         if (!string.IsNullOrEmpty(describerConn))
-            await Clients.Client(describerConn).SendAsync("AssignedRole", "describer");
+            await Clients.Client(describerConn).SendAsync("AssignedRole", result.Describer.Role.ToString());
         if (!string.IsNullOrEmpty(drawerConn))
-            await Clients.Client(drawerConn).SendAsync("AssignedRole", "drawer");
+            await Clients.Client(drawerConn).SendAsync("AssignedRole", result.Drawer.Role.ToString());
 
         // Send the image only to the describer (if available)
         if (image is not null && !string.IsNullOrEmpty(describerConn))

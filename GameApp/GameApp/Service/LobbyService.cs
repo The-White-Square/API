@@ -117,7 +117,7 @@ public class LobbyService
         }
 
         // pick describer using existing extension GetRandom
-        var describer = candidates.GetRandom()!; // non-null because candidates.Count >= 2
+        var describer = candidates.GetRandom()!;
         var drawer = candidates.First(p => !ReferenceEquals(p, describer));
 
         // set roles
@@ -128,5 +128,5 @@ public class LobbyService
         var image = GetOrAssignLobbyImage(lobbyId);
 
         return new RolesAssignment(describer.ConnectionId, drawer.ConnectionId, describer, drawer, image);
-        }
     }
+ }
