@@ -5,6 +5,7 @@ public class Lobby
 {
     public Guid Id { get; init; } = Guid.NewGuid();
     public string LobbyCode { get; set; }
+    public Lobby() => LobbyCode = string.Empty;
     public string Phase { get; set; } = "Waiting"; // Waiting, GameInProgress, End
     public List<Player> Players { get; } = new();
     public string? SelectedImageId { get; set; }

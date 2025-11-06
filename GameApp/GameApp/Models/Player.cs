@@ -14,4 +14,11 @@ public class Player
         this.DisplayName = displayName;
         this.iconId = iconId;
     }
+
+    // EF relation
+    public Guid LobbyId { get; set; }
+    public Lobby? Lobby { get; set; }
+
+    // EF parameterless constructor
+    public Player() { }
 }

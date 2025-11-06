@@ -6,6 +6,9 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.EntityFrameworkCore;
+using GameApp.Data;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,11 +32,23 @@ builder.Services.AddSwaggerGen();
 // SignalR
 builder.Services.AddSignalR();
 
+// EF Core (SQLite file in app root) - use DbContextFactory for singletons
+builder.Services.AddDbContextFactory<AppDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("Default") ?? "Data Source=gameapp.db"));
+
 // Application services
 builder.Services.AddSingleton<GalleryService>();
 builder.Services.AddSingleton<LobbyService>();
 
 var app = builder.Build();
+
+// Create database schema if missing
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    // Prefer migrations for real projects:
+    db.Database.Migrate();
+}
 
 if (app.Environment.IsDevelopment())
 {
