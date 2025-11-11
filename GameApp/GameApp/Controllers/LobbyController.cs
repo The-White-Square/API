@@ -4,6 +4,7 @@ using GameApp.Models.Requests;
 using Microsoft.AspNetCore.Mvc;
 using GameApp.Service;
 using Microsoft.AspNetCore.SignalR;
+using System.Linq;
 
 namespace GameApp.Controllers   
 {
@@ -58,6 +59,20 @@ namespace GameApp.Controllers
                 return NotFound("No images available.");
 
             return Ok(dto);
+        }
+
+        // return list of players (id + display name + icon id)
+        [HttpGet("{lobbyId}/players")]
+        public ActionResult<IEnumerable<object>> GetLobbyPlayers(string lobbyId)
+        {
+            if (!_lobbiesService.LobbyExists(lobbyId))
+                return NotFound("Lobby not found");
+
+            var lobby = _lobbiesService.GetLobby(lobbyId);
+            var players = lobby.Players
+                .Select(p => new { id = p.Id, displayName = p.DisplayName, iconId = p.iconId })
+                .ToList();
+            return Ok(players);
         }
     }
 }
