@@ -42,6 +42,17 @@ public class LobbyHub : Hub
         await Clients.Group(lobbyId).SendAsync("LobbyMessage", message, playerName);
     }
 
+    // allow clients to invoke GetPlayers via SignalR
+    public Task<string[]> GetPlayers(string lobbyId)
+    {
+        if (!_lobbyService.LobbyExists(lobbyId))
+            throw new HubException("Lobby not found");
+
+        var lobby = _lobbyService.GetLobby(lobbyId);
+        var names = lobby.Players.Select(p => p.DisplayName).ToArray();
+        return Task.FromResult(names);
+    }
+
     // server-side role assignment. sends AssignedRole to each player and sends the image only to the describer.
     public async Task<bool> AssignRoles(string lobbyId)
     {
