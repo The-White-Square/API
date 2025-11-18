@@ -6,12 +6,13 @@ using GameApp.Data;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 
 namespace GameApp.Service;
 
 public class LobbyService : ILobbyService
 {
-    private readonly Dictionary<string, Lobby> _lobbies = new();
+    private readonly ConcurrentDictionary<string, Lobby> _lobbies = new();
     private readonly IGalleryService _gallery;
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly ILobbyCodeGenerator _codeGenerator;
@@ -37,9 +38,7 @@ public class LobbyService : ILobbyService
 
     public void AddPlayer(Player player, string lobbyId)
     {
-        if (!_lobbies.ContainsKey(lobbyId))
-            CreateLobbyInternal(lobbyId);
-        var lobby = _lobbies[lobbyId];
+        var lobby = EnsureLobbyExists(lobbyId);
 
         lobby.Players.Add(player);
         _logger.LogInformation("Player {Player} added to lobby {LobbyId}. Player count now {Count}.",
@@ -79,14 +78,26 @@ public class LobbyService : ILobbyService
 
     private Lobby CreateLobbyInternal(string lobbyCode)
     {
+        // Atomically add to in-memory store, then persist only if we were the thread that added it
         var lobby = new Lobby(lobbyCode);
-        _lobbies[lobbyCode] = lobby;
+        if (_lobbies.TryAdd(lobbyCode, lobby))
+        {
+            using var db = _dbFactory.CreateDbContext();
+            db.Lobbies.Add(lobby);
+            db.SaveChanges();
+            return lobby;
+        }
 
-        using var db = _dbFactory.CreateDbContext();
-        db.Lobbies.Add(lobby);
-        db.SaveChanges();
+        return _lobbies[lobbyCode];
+    }
 
-        return lobby;
+    private Lobby EnsureLobbyExists(string lobbyId)
+    {
+        if (_lobbies.TryGetValue(lobbyId, out var existing))
+            return existing;
+
+        // Attempt to create if missing; handles races safely
+        return CreateLobbyInternal(lobbyId);
     }
 
     public void JoinLobby(string lobbyId)
@@ -96,10 +107,8 @@ public class LobbyService : ILobbyService
 
     public void AddOrUpdatePlayerConnection(string lobbyId, string displayName, int iconId, string connectionId)
     {
-        if (!_lobbies.ContainsKey(lobbyId))
-            CreateLobbyInternal(lobbyId);
+        var lobby = EnsureLobbyExists(lobbyId);
 
-        var lobby = _lobbies[lobbyId];
         var player = lobby.Players.FirstOrDefault(p => string.Equals(p.DisplayName, displayName, StringComparison.OrdinalIgnoreCase));
         if (player is null)
         {
