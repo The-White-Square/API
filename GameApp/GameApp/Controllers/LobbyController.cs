@@ -6,17 +6,16 @@ using GameApp.Service;
 using Microsoft.AspNetCore.SignalR;
 using System.Linq;
 
-namespace GameApp.Controllers   
+namespace GameApp.Controllers
 {
-
     [ApiController]
     [Route("lobby")]
     public class LobbyController : ControllerBase
     {
-        private readonly LobbyService _lobbiesService;
+        private readonly ILobbyService _lobbiesService;
         private readonly IHubContext<LobbyHub> _hubContext;
 
-        public LobbyController(LobbyService lobbiesService, IHubContext<LobbyHub> hubContext)
+        public LobbyController(ILobbyService lobbiesService, IHubContext<LobbyHub> hubContext)
         {
             _lobbiesService = lobbiesService;
             _hubContext =  hubContext;

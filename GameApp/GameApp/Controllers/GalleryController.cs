@@ -7,9 +7,9 @@ namespace GameApp.Controllers;
 [Route("gallery")]
 public class GalleryController : ControllerBase
 {
-    private readonly GalleryService _gallery;
+    private readonly IGalleryService _gallery;
 
-    public GalleryController(GalleryService gallery)
+    public GalleryController(IGalleryService gallery)
     {
         _gallery = gallery;
     }

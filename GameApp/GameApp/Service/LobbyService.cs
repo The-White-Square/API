@@ -1,26 +1,33 @@
 using GameApp.Controllers;
-using GameApp.Hubs;
 using GameApp.LobbySystem;
 using GameApp.Service.Extensions;
 using GameApp.Utils;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.SignalR;
 using GameApp.Data;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace GameApp.Service;
 
-public class LobbyService
+public class LobbyService : ILobbyService
 {
     private readonly Dictionary<string, Lobby> _lobbies = new();
-    private readonly GalleryService _gallery;
+    private readonly IGalleryService _gallery;
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
+    private readonly ILobbyCodeGenerator _codeGenerator;
+    private readonly ILogger<LobbyService> _logger;
 
-    public LobbyService(GalleryService gallery, IDbContextFactory<AppDbContext> dbFactory)
+    public LobbyService(
+        IGalleryService gallery,
+        IDbContextFactory<AppDbContext> dbFactory,
+        ILobbyCodeGenerator codeGenerator,
+        ILogger<LobbyService> logger)
     {
         _gallery = gallery;
         _dbFactory = dbFactory;
+        _codeGenerator = codeGenerator;
+        _logger = logger;
+        _logger.LogInformation("LobbyService initialized.");
     }
 
     public Lobby GetLobby(string lobbyId) => _lobbies[lobbyId];
@@ -31,13 +38,13 @@ public class LobbyService
     public void AddPlayer(Player player, string lobbyId)
     {
         if (!_lobbies.ContainsKey(lobbyId))
-            CreateLobby(lobbyId);
+            CreateLobbyInternal(lobbyId);
         var lobby = _lobbies[lobbyId];
 
-        // in-memory
         lobby.Players.Add(player);
+        _logger.LogInformation("Player {Player} added to lobby {LobbyId}. Player count now {Count}.",
+            player.DisplayName, lobbyId, lobby.Players.Count);
 
-        // persist
         using var db = _dbFactory.CreateDbContext();
         var existing = db.Players.FirstOrDefault(p => p.LobbyId == lobby.Id && p.DisplayName == player.DisplayName);
         if (existing is null)
@@ -49,6 +56,7 @@ public class LobbyService
                 ConnectionId = player.ConnectionId
             };
             db.Players.Add(dbPlayer);
+            _logger.LogDebug("Persisted new player {Player} in lobby {LobbyId}.", player.DisplayName, lobbyId);
         }
         else
         {
@@ -56,16 +64,23 @@ public class LobbyService
             existing.Role = player.Role;
             existing.ConnectionId = player.ConnectionId;
             db.Players.Update(existing);
+            _logger.LogDebug("Updated existing player {Player} in lobby {LobbyId}.", player.DisplayName, lobbyId);
         }
         db.SaveChanges();
     }
 
-    public Lobby CreateLobby() => CreateLobby(Utils.LobbyUtils.GenerateLobbyCode());
-
-    private Lobby CreateLobby(string lobbyId)
+    public Lobby CreateLobby()
     {
-        var lobby = new Lobby(lobbyId);
-        _lobbies[lobbyId] = lobby;
+        var code = _codeGenerator.Generate();
+        var lobby = CreateLobbyInternal(code);
+        _logger.LogInformation("Created lobby {LobbyCode}", lobby.LobbyCode);
+        return lobby;
+    }
+
+    private Lobby CreateLobbyInternal(string lobbyCode)
+    {
+        var lobby = new Lobby(lobbyCode);
+        _lobbies[lobbyCode] = lobby;
 
         using var db = _dbFactory.CreateDbContext();
         db.Lobbies.Add(lobby);
@@ -76,13 +91,13 @@ public class LobbyService
 
     public void JoinLobby(string lobbyId)
     {
-        // optional: track joins
+        _logger.LogDebug("JoinLobby invoked for {LobbyId}. Exists: {Exists}", lobbyId, LobbyExists(lobbyId));
     }
 
     public void AddOrUpdatePlayerConnection(string lobbyId, string displayName, int iconId, string connectionId)
     {
         if (!_lobbies.ContainsKey(lobbyId))
-            CreateLobby(lobbyId);
+            CreateLobbyInternal(lobbyId);
 
         var lobby = _lobbies[lobbyId];
         var player = lobby.Players.FirstOrDefault(p => string.Equals(p.DisplayName, displayName, StringComparison.OrdinalIgnoreCase));
@@ -90,11 +105,13 @@ public class LobbyService
         {
             player = new Player(displayName, iconId) { ConnectionId = connectionId };
             lobby.Players.Add(player);
+            _logger.LogInformation("Player connection added: {Player} to lobby {LobbyId}", displayName, lobbyId);
         }
         else
         {
             player.ConnectionId = connectionId;
             player.iconId = iconId;
+            _logger.LogInformation("Player connection updated: {Player} in lobby {LobbyId}", displayName, lobbyId);
         }
 
         using var db = _dbFactory.CreateDbContext();
@@ -120,22 +137,31 @@ public class LobbyService
     public ImageDto? GetOrAssignLobbyImage(string lobbyId)
     {
         if (!_lobbies.TryGetValue(lobbyId, out var lobby))
+        {
+            _logger.LogWarning("GetOrAssignLobbyImage: Lobby {LobbyId} not found.", lobbyId);
             return null;
+        }
 
         if (!string.IsNullOrEmpty(lobby.SelectedImageId))
         {
             var path = _gallery.GetImageFilePath(lobby.SelectedImageId);
             if (path is not null)
             {
+                _logger.LogDebug("Reusing existing lobby image {ImageId} for lobby {LobbyId}.",
+                    lobby.SelectedImageId, lobbyId);
                 return new ImageDto(lobby.SelectedImageId!, $"/images/{lobby.SelectedImageId}", new FileInfo(path).Length);
             }
-            // pick a new file if assigned file missing
             lobby.SelectedImageId = null;
             lobby.SelectedImageUrl = null;
+            _logger.LogInformation("Previously assigned image missing; reselecting for lobby {LobbyId}.", lobbyId);
         }
 
         var picked = _gallery.GetRandomImage();
-        if (picked is null) return null;
+        if (picked is null)
+        {
+            _logger.LogWarning("No images available to assign to lobby {LobbyId}.", lobbyId);
+            return null;
+        }
 
         lobby.SelectedImageId = picked.Id;
         lobby.SelectedImageUrl = picked.Url;
@@ -150,6 +176,7 @@ public class LobbyService
             db.SaveChanges();
         }
 
+        _logger.LogInformation("Assigned image {ImageId} to lobby {LobbyId}.", picked.Id, lobbyId);
         return picked;
     }
 
@@ -160,21 +187,29 @@ public class LobbyService
         return _gallery.GetImageFilePath(lobby.SelectedImageId);
     }
 
-    // result object for role assignment
-    public record RolesAssignment(string? DescriberConnectionId, string? DrawerConnectionId, Player Describer, Player Drawer, ImageDto? Image);
-
     // assign roles for the lobby, pick or reuse a lobby image (returns null if not enough players / lobby missing).
     public RolesAssignment? AssignRoles(string lobbyId)
     {
-        if (!_lobbies.TryGetValue(lobbyId, out var lobby)) return null;
-        if (lobby.Players.Count < 2) return null;
+        if (!_lobbies.TryGetValue(lobbyId, out var lobby))
+        {
+            _logger.LogWarning("AssignRoles: Lobby {LobbyId} not found.", lobbyId);
+            return null;
+        }
+        if (lobby.Players.Count < 2)
+        {
+            _logger.LogWarning("AssignRoles: Not enough players in lobby {LobbyId}. Count: {Count}", lobbyId, lobby.Players.Count);
+            return null;
+        }
 
         var candidates = lobby.Players.Where(p => !string.IsNullOrEmpty(p.ConnectionId)).ToList();
         if (candidates.Count < 2)
         {
-            // fallback: take first two players even without connection id
             candidates = lobby.Players.Take(2).ToList();
-            if (candidates.Count < 2) return null;
+            if (candidates.Count < 2)
+            {
+                _logger.LogWarning("AssignRoles fallback failed: lobby {LobbyId} still lacks players.", lobbyId);
+                return null;
+            }
         }
 
         var describer = candidates.GetRandom()!;
@@ -194,6 +229,9 @@ public class LobbyService
             if (p.DisplayName == drawer.DisplayName) p.Role = PlayerRole.Artist;
         }
         if (dbPlayers.Count > 0) db.SaveChanges();
+
+        _logger.LogInformation("Roles assigned in lobby {LobbyId}: Describer={Describer}, Drawer={Drawer}, ImageAssigned={HasImage}",
+            lobbyId, describer.DisplayName, drawer.DisplayName, image is not null);
 
         return new RolesAssignment(describer.ConnectionId, drawer.ConnectionId, describer, drawer, image);
     }
