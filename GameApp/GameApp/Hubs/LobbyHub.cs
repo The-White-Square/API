@@ -6,9 +6,9 @@ namespace GameApp.Hubs;
 
 public class LobbyHub : Hub
 {
-    private readonly LobbyService _lobbyService;
+    private readonly ILobbyService _lobbyService; // changed type
 
-    public LobbyHub(LobbyService lobbyService)
+    public LobbyHub(ILobbyService lobbyService) // changed parameter
     {
         _lobbyService = lobbyService;
     }
