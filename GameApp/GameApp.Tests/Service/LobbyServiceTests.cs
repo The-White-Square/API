@@ -140,7 +140,13 @@ public class LobbyServiceTests : IDisposable
 
         // Assert
         var lobby = service.GetLobby("LOBBY2");
-        Assert.Equal(2, lobby.Players.Count); // In-memory adds both
+        Assert.Single(lobby.Players); // Should be 1 player after update, not 2
+
+        var player = lobby.Players.First();
+        Assert.Equal("Jane", player.DisplayName);
+        Assert.Equal(2, player.iconId);
+        Assert.Equal("conn2", player.ConnectionId);
+        Assert.Equal(PlayerRole.Artist, player.Role);
 
         using var db = new AppDbContext(_dbOptions);
         var dbPlayer = db.Players.FirstOrDefault(p => p.DisplayName == "Jane");
