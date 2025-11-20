@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using GameApp.Service;
 using Microsoft.AspNetCore.SignalR;
 using System.Linq;
+using GameApp.Service.Exceptions;
 
 namespace GameApp.Controllers
 {
@@ -37,9 +38,16 @@ namespace GameApp.Controllers
 
             if (_lobbiesService.LobbyExists(lobbyId))
             {// join
-                _lobbiesService.AddPlayer(new Player(request.Username, request.IconId), lobbyId);
-                await _hubContext.Clients.Group(lobbyId).SendAsync("PlayerJoined", request.Username);
-                return Ok(request.Username);
+                try
+                {
+                    _lobbiesService.AddPlayer(new Player(request.Username, request.IconId), lobbyId);
+                    await _hubContext.Clients.Group(lobbyId).SendAsync("PlayerJoined", request.Username);
+                    return Ok(request.Username);
+                }
+                catch (LobbyFullException)
+                {
+                    return Conflict("Lobby is full");
+                }
             }
             
             // error
