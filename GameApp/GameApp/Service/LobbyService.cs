@@ -7,6 +7,7 @@ using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
+using GameApp.Service.Exceptions;
 
 namespace GameApp.Service;
 
@@ -40,9 +41,29 @@ public class LobbyService : ILobbyService
     {
         var lobby = EnsureLobbyExists(lobbyId);
 
-        lobby.Players.Add(player);
-        _logger.LogInformation("Player {Player} added to lobby {LobbyId}. Player count now {Count}.",
-            player.DisplayName, lobbyId, lobby.Players.Count);
+        // First check if a player with the same display name exists in-memory
+        var existingInMemory = lobby.Players.FirstOrDefault(p => string.Equals(p.DisplayName, player.DisplayName, StringComparison.OrdinalIgnoreCase));
+        if (existingInMemory is null)
+        {
+            // If adding a new player would exceed maximum allowed players, throw
+            if (lobby.Players.Count >= 2)
+            {
+                _logger.LogWarning("Cannot add player {Player} to lobby {LobbyId}: lobby full (max 2).", player.DisplayName, lobbyId);
+                throw new LobbyFullException(lobbyId, 2);
+            }
+
+            lobby.Players.Add(player);
+            _logger.LogInformation("Player {Player} added to lobby {LobbyId}. Player count now {Count}.",
+                player.DisplayName, lobbyId, lobby.Players.Count);
+        }
+        else
+        {
+            // Update existing in-memory player
+            existingInMemory.iconId = player.iconId;
+            existingInMemory.Role = player.Role;
+            existingInMemory.ConnectionId = player.ConnectionId;
+            _logger.LogInformation("Updated existing in-memory player {Player} in lobby {LobbyId}.", player.DisplayName, lobbyId);
+        }
 
         using var db = _dbFactory.CreateDbContext();
         var existing = db.Players.FirstOrDefault(p => p.LobbyId == lobby.Id && p.DisplayName == player.DisplayName);
