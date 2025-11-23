@@ -80,3 +80,4 @@ var imagesRoot = Path.Combine(env.WebRootPath ?? "wwwroot", "images");
 Directory.CreateDirectory(imagesRoot);
 
 app.Run();
+public partial class Program { } // for usage in integration tests.

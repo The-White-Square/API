@@ -4,3 +4,7 @@ obj/
 .idea/
 /GameApp/GameApp/gameapp.db-shm
 /GameApp/GameApp/gameapp.db-wal
+TestResults/
+coverage-report/
+coverage/
+/GameApp/GameApp/gameapp.db

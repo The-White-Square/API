@@ -6,6 +6,10 @@ using GameApp.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using GameApp.Service.Exceptions;
+using Xunit;
+using Microsoft.Extensions.Logging.Abstractions;
+using GameApp.Models;
+using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace GameApp.Tests.Service;
 
@@ -200,7 +204,7 @@ public class LobbyServiceTests : IDisposable
         // Create a temporary file to simulate the image
         var tempFile = Path.GetTempFileName();
         File.WriteAllText(tempFile, "fake image content");
-        
+
         _mockGallery.Setup(x => x.GetImageFilePath("img123")).Returns(tempFile);
 
         try
