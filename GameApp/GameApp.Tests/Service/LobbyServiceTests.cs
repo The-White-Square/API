@@ -436,4 +436,30 @@ public class LobbyServiceTests : IDisposable
         Assert.Equal("persistImg", lobbyRow.SelectedImageId);
         Assert.Equal("/images/persistImg", lobbyRow.SelectedImageUrl);
     }
+
+    // implicit lobby creation when adding a player connection to a non-existent lobby
+    [Fact]
+    public void AddOrUpdatePlayerConnection_CreatesLobbyIfMissing()
+    {
+        // Arrange
+        var service = CreateService();
+        Assert.False(service.LobbyExists("ImplicitLobby"));
+
+        // Act
+        service.AddOrUpdatePlayerConnection("ImplicitLobby", "DemoName", 5, "Connection432");
+
+        // Assert
+        Assert.True(service.LobbyExists("ImplicitLobby"));
+        var lobby = service.GetLobby("ImplicitLobby");
+        Assert.Single(lobby.Players);
+        var player = lobby.Players.First();
+        Assert.Equal("DemoName", player.DisplayName);
+        Assert.Equal("Connection432", player.ConnectionId);
+        Assert.Equal(5, player.iconId);
+
+        using var db = new AppDbContext(_dbOptions);
+        var dbPlayer = db.Players.FirstOrDefault(p => p.DisplayName == "DemoName" && p.LobbyId == lobby.Id);
+        Assert.NotNull(dbPlayer);
+    }
+
 }
