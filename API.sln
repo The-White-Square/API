@@ -4,7 +4,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 17.14.36511.14 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GameApp", "GameApp\GameApp\GameApp.csproj", "{FC05FFB3-7AC0-4CCD-3BC9-F1CF66630E77}"
+EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GameApp.Tests", "GameApp\GameApp.Tests\GameApp.Tests.csproj", "{97993805-7073-496D-92C6-62AC898715AB}"
+EndProject
 
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -26,9 +28,5 @@ Global
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {37420527-A339-4671-82B0-922ED9BF028A}
-	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
-		{FC05FFB3-7AC0-4CCD-3BC9-F1CF66630E77} = {04B05027-0A0D-4D14-8BF1-73782702F12A}
-		{97993805-7073-496D-92C6-62AC898715AB} = {3DF9EAB9-E0A4-4CAE-8F3B-3B910EDC0A33}
 	EndGlobalSection
 EndGlobal
