@@ -462,4 +462,44 @@ public class LobbyServiceTests : IDisposable
         Assert.NotNull(dbPlayer);
     }
 
+    // adding same display name twice does not duplicate player, just updates properties
+    [Fact]
+    public void AddPlayer_DoesNotDuplicateExistingPlayer_UpdatesExisting()
+    {
+        // Arrange
+        var service = CreateService();
+        _mockCodeGenerator.Setup(x => x.Generate()).Returns("Lobby123");
+        service.CreateLobby();
+
+        var initial = new Player("RepeatingName", 1)
+        {
+            Role = PlayerRole.None,
+            ConnectionId = "ConnectionA"
+        };
+        service.AddPlayer(initial, "Lobby123");
+
+        // Act
+        var updated = new Player("RepeatingName", 9)
+        {
+            Role = PlayerRole.Artist,
+            ConnectionId = "ConnectionB"
+        };
+        service.AddPlayer(updated, "Lobby123");
+
+        // Assert
+        var lobby = service.GetLobby("Lobby123");
+        Assert.Single(lobby.Players);
+        var player = lobby.Players.First();
+        Assert.Equal("RepeatingName", player.DisplayName);
+        Assert.Equal(9, player.iconId);
+        Assert.Equal(PlayerRole.Artist, player.Role);
+        Assert.Equal("ConnectionB", player.ConnectionId);
+
+        using var db = new AppDbContext(_dbOptions);
+        var dbPlayer = db.Players.FirstOrDefault(p => p.DisplayName == "RepeatingName" && p.LobbyId == lobby.Id);
+        Assert.NotNull(dbPlayer);
+        Assert.Equal(9, dbPlayer!.iconId);
+        Assert.Equal(PlayerRole.Artist, dbPlayer.Role);
+        Assert.Equal("ConnectionB", dbPlayer.ConnectionId);
+    }
 }

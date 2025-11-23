@@ -56,6 +56,16 @@ public class LobbyService : ILobbyService
             _logger.LogInformation("Player {Player} added to lobby {LobbyId}. Player count now {Count}.",
                 player.DisplayName, lobbyId, lobby.Players.Count);
         }
+        else
+        {
+            // Update in-memory player to keep consistency with DB update logic below
+            existingInMemory.iconId = player.iconId;
+            existingInMemory.Role = player.Role;
+            if (!string.IsNullOrEmpty(player.ConnectionId))
+                existingInMemory.ConnectionId = player.ConnectionId;
+
+            _logger.LogInformation("Player {Player} updated in-memory in lobby {LobbyId}.", player.DisplayName, lobbyId);
+        }
 
         using var db = _dbFactory.CreateDbContext();
         var existing = db.Players.FirstOrDefault(p => p.LobbyId == lobby.Id && p.DisplayName == player.DisplayName);
