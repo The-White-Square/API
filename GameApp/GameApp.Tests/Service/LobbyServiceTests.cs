@@ -124,39 +124,6 @@ public class LobbyServiceTests : IDisposable
     }
 
     [Fact]
-    public void AddPlayer_ShouldUpdateExistingPlayer()
-    {
-        // Arrange
-        var service = CreateService();
-        _mockCodeGenerator.Setup(x => x.Generate()).Returns("LOBBY2");
-        service.CreateLobby();
-
-        var player1 = new Player("Jane", 1) { ConnectionId = "conn1" };
-        var player2 = new Player("Jane", 2) { ConnectionId = "conn2", Role = PlayerRole.Artist };
-
-        // Act
-        service.AddPlayer(player1, "LOBBY2");
-        service.AddPlayer(player2, "LOBBY2");
-
-        // Assert
-        var lobby = service.GetLobby("LOBBY2");
-        Assert.Single(lobby.Players); // Should be 1 player after update, not 2
-
-        var player = lobby.Players.First();
-        Assert.Equal("Jane", player.DisplayName);
-        Assert.Equal(2, player.iconId);
-        Assert.Equal("conn2", player.ConnectionId);
-        Assert.Equal(PlayerRole.Artist, player.Role);
-
-        using var db = new AppDbContext(_dbOptions);
-        var dbPlayer = db.Players.FirstOrDefault(p => p.DisplayName == "Jane");
-        Assert.NotNull(dbPlayer);
-        Assert.Equal(2, dbPlayer.iconId);
-        Assert.Equal("conn2", dbPlayer.ConnectionId);
-        Assert.Equal(PlayerRole.Artist, dbPlayer.Role);
-    }
-
-    [Fact]
     public void AddOrUpdatePlayerConnection_ShouldAddNewPlayer()
     {
         // Arrange
