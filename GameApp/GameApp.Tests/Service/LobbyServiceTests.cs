@@ -5,6 +5,7 @@ using GameApp.Data;
 using GameApp.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using GameApp.Service.Exceptions;
 
 namespace GameApp.Tests.Service;
 
@@ -396,20 +397,39 @@ public class LobbyServiceTests : IDisposable
         // Verify that JoinLobby executes without error
         Assert.True(service.LobbyExists("JOINTEST"));
     }
-}
 
-// Helper class to create DbContext for testing
-public class TestDbContextFactory : IDbContextFactory<AppDbContext>
-{
-    private readonly DbContextOptions<AppDbContext> _options;
-
-    public TestDbContextFactory(DbContextOptions<AppDbContext> options)
+    [Fact]
+    public void AddPlayer_ThrowsLobbyFullException_WhenLobbyIsFull()
     {
-        _options = options;
+        var service = CreateService();
+        _mockCodeGenerator.Setup(x => x.Generate()).Returns("FULL001");
+        service.CreateLobby();
+
+        service.AddPlayer(new Player("First", 1), "FULL001");
+        service.AddPlayer(new Player("Second", 2), "FULL001");
+
+        Assert.Throws<LobbyFullException>(() => service.AddPlayer(new Player("Third", 3), "FULL001"));
     }
 
-    public AppDbContext CreateDbContext()
+    [Fact]
+    public void GetOrAssignLobbyImage_PersistsSelectedImageToDatabase()
     {
-        return new AppDbContext(_options);
+        var service = CreateService();
+        _mockCodeGenerator.Setup(x => x.Generate()).Returns("PERSIST1");
+        service.CreateLobby();
+
+        var imageDto = new ImageDto("persistImg", "/images/persistImg", 100);
+        _mockGallery.Setup(x => x.GetRandomImage()).Returns(imageDto);
+
+        var result = service.GetOrAssignLobbyImage("PERSIST1");
+
+        Assert.NotNull(result);
+        Assert.Equal("persistImg", result.Id);
+
+        using var db = new AppDbContext(_dbOptions);
+        var lobbyRow = db.Lobbies.FirstOrDefault(l => l.LobbyCode == "PERSIST1");
+        Assert.NotNull(lobbyRow);
+        Assert.Equal("persistImg", lobbyRow.SelectedImageId);
+        Assert.Equal("/images/persistImg", lobbyRow.SelectedImageUrl);
     }
 }
