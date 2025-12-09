@@ -80,4 +80,12 @@ public class LobbyHub : Hub
 
         return true;
     }
+
+    // Broadcast GoToFinal so all clients in the lobby navigate to final page
+    public async Task GoToFinal(string lobbyId)
+    {
+        if (!_lobbyService.LobbyExists(lobbyId))
+            throw new HubException("Lobby not found");
+        await Clients.Group(lobbyId).SendAsync("GoToFinal");
+    }
 }
