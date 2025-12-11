@@ -40,9 +40,9 @@ public class LobbyHub : Hub
         await Clients.Group(lobbyId).SendAsync("PlayerJoined", lobbyId, playerName, iconId);
     }
 
-    public async Task SendLobbyMessage(string lobbyId, string message, string playerName)
+    public async Task SendLobbyMessage(string lobbyId, string message, string playerName, int iconId)
     {
-        await Clients.Group(lobbyId).SendAsync("LobbyMessage", message, playerName);
+        await Clients.Group(lobbyId).SendAsync("LobbyMessage", message, playerName, iconId);
     }
 
     // allow clients to invoke GetPlayers via SignalR
@@ -132,5 +132,13 @@ public class LobbyHub : Hub
         if (describer is null) return null;
         if (describer.ConnectionId == callerConnection) return null; // caller is describer; ignore
         return describer.ConnectionId;
+    }
+    
+    // Broadcast GoToFinal so all clients in the lobby navigate to final page
+    public async Task GoToFinal(string lobbyId)
+    {
+        if (!_lobbyService.LobbyExists(lobbyId))
+            throw new HubException("Lobby not found");
+        await Clients.Group(lobbyId).SendAsync("GoToFinal");
     }
 }

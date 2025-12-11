@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using GameApp.Controllers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -7,6 +8,7 @@ using Xunit;
 using GameApp.Data;
 using GameApp.LobbySystem;
 using GameApp.Service;
+using GameApp.Service.Exceptions;
 using GameApp.Utils;
 
 namespace GameApp.Tests.Integration;
@@ -60,4 +62,116 @@ public class LobbyServiceIntegrationTests : IDisposable
         Assert.Single(dbLobby.Players);
         Assert.Equal("IntUser", dbLobby.Players.First().DisplayName);
     }
+    [Fact]
+    public void AddPlayer_ToFullLobby_ThrowsLobbyFullException()
+    {
+        // Arrange
+        _mockCodeGenerator.Setup(x => x.Generate()).Returns("TEST123");
+        var service = new LobbyService(_mockGallery.Object, _dbFactory, _mockCodeGenerator.Object, _mockLogger.Object);
+        var lobby = service.CreateLobby();
+        var lobbyCode = lobby.LobbyCode;
+
+        var player1 = new Player("Player1", 1) { ConnectionId = "conn1" };
+        var player2 = new Player("Player2", 2) { ConnectionId = "conn2" };
+        var player3 = new Player("Player3", 3) { ConnectionId = "conn3" };
+
+        service.AddPlayer(player1, lobbyCode);
+        service.AddPlayer(player2, lobbyCode);
+
+        // Act
+        var exception = Assert.Throws<LobbyFullException>(() => 
+            service.AddPlayer(player3, lobbyCode));
+
+        // Assert
+        Assert.Equal(lobbyCode, exception.LobbyId);
+
+        using var db = new AppDbContext(_dbOptions);
+        var dbLobby = db.Lobbies.Include(l => l.Players).First(l => l.LobbyCode == lobbyCode);
+        Assert.Equal(2, dbLobby.Players.Count);
+        Assert.DoesNotContain(dbLobby.Players, p => p.DisplayName == "Player3");
+    }
+
+    [Fact]
+    public void AssignRoles_PersistsRolesToDatabase_AndRetrievableByNewInstance()
+    {
+        // Arrange
+        _mockCodeGenerator.Setup(x => x.Generate()).Returns("ROLE123");
+
+        _mockGallery.Setup(x => x.GetRandomImage())
+            .Returns(new ImageDto("img1", "/images/img1", 1024));
+        _mockGallery.Setup(x => x.GetImageFilePath("img1"))
+            .Returns("/path/to/img1.jpg");
+
+        var service1 = new LobbyService(_mockGallery.Object, _dbFactory, _mockCodeGenerator.Object, _mockLogger.Object);
+        var lobby = service1.CreateLobby();
+        var lobbyCode = lobby.LobbyCode;
+
+        var player1 = new Player("Alice", 1) { ConnectionId = "conn_alice" };
+        var player2 = new Player("Bob", 2) { ConnectionId = "conn_bob" };
+
+        service1.AddPlayer(player1, lobbyCode);
+        service1.AddPlayer(player2, lobbyCode);
+
+        // Act
+        var assignment = service1.AssignRoles(lobbyCode);
+
+        // Assert
+        Assert.NotNull(assignment);
+        Assert.NotNull(assignment.Describer);
+        Assert.NotNull(assignment.Drawer);
+        Assert.NotEqual(assignment.Describer.DisplayName, assignment.Drawer.DisplayName);
+
+        using var db = new AppDbContext(_dbOptions);
+        var dbLobby = db.Lobbies.Include(l => l.Players).First(l => l.LobbyCode == lobbyCode);
+
+        var explainer = dbLobby.Players.Single(p => p.Role == PlayerRole.Explainer);
+        var artist = dbLobby.Players.Single(p => p.Role == PlayerRole.Artist);
+
+        Assert.NotNull(explainer);
+        Assert.NotNull(artist);
+        Assert.Contains(explainer.DisplayName, new[] { "Alice", "Bob" });
+        Assert.Contains(artist.DisplayName, new[] { "Alice", "Bob" });
+
+        Assert.NotNull(dbLobby.SelectedImageId);
+        Assert.Equal("img1", dbLobby.SelectedImageId);
+    }
+
+    [Fact]
+    public void AddPlayer_SamePlayerTwice_UpdatesInsteadOfDuplicating()
+    {
+        // Arrange
+        _mockCodeGenerator.Setup(x => x.Generate()).Returns("DUP123");
+        var service = new LobbyService(_mockGallery.Object, _dbFactory, _mockCodeGenerator.Object, _mockLogger.Object);
+        var lobby = service.CreateLobby();
+        var lobbyCode = lobby.LobbyCode;
+
+        var player = new Player("David", 7) { ConnectionId = "conn_initial" };
+
+        // Act
+        service.AddPlayer(player, lobbyCode);
+        
+        player.ConnectionId = "conn_updated";
+        player.iconId = 15;
+        player.Role = PlayerRole.Artist;
+        service.AddPlayer(player, lobbyCode);
+
+        // Assert
+        using (var db = new AppDbContext(_dbOptions))
+        {
+            var dbLobby = db.Lobbies.Include(l => l.Players).First(l => l.LobbyCode == lobbyCode);
+            
+            Assert.Single(dbLobby.Players);
+            
+            var dbPlayer = dbLobby.Players.First();
+            Assert.Equal("David", dbPlayer.DisplayName);
+            Assert.Equal("conn_updated", dbPlayer.ConnectionId);
+            Assert.Equal(15, dbPlayer.iconId);
+            Assert.Equal(PlayerRole.Artist, dbPlayer.Role);
+        }
+
+        var memoryLobby = service.GetLobby(lobbyCode);
+        Assert.Single(memoryLobby.Players);
+        Assert.Equal("conn_updated", memoryLobby.Players.First().ConnectionId);
+    }
 }
+

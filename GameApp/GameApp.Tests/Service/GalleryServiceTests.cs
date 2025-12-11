@@ -143,4 +143,18 @@ public class GalleryServiceTests : IDisposable
         // Assert
         Assert.Null(result);
     }
+
+    [Fact]
+    public async Task SaveImageAsync_Throws_On_Null_File()
+    {
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.SaveImageAsync(null!));
+    }
+
+    [Fact]
+    public async Task SaveImageAsync_Throws_On_Empty_File()
+    {
+        var emptyFile = CreateMockFormFile("empty.jpg", Array.Empty<byte>());
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.SaveImageAsync(emptyFile));
+    }
+
 }
