@@ -15,14 +15,15 @@ public class SignalRDrawingRelay : IDrawingRelay
     }
 
     public Task RelayStrokeStarted(StrokeStartedDto dto, string targetConnectionId) =>
-        _hubContext.Clients.Client(targetConnectionId).SendAsync("StrokeStarted", dto.StrokeId, dto.Color, dto.Width, dto.Tool);
+        // TEMP: broadcast to group for testing
+        _hubContext.Clients.Group(dto.LobbyId).SendAsync("StrokeStarted", dto.StrokeId, dto.Color, dto.Width, dto.Tool);
 
     public Task RelayStrokePoints(StrokePointsDto dto, string targetConnectionId) =>
-        _hubContext.Clients.Client(targetConnectionId).SendAsync("StrokePoints", dto.StrokeId, dto.Points);
+        _hubContext.Clients.Group(dto.LobbyId).SendAsync("StrokePoints", dto.StrokeId, dto.Points);
 
     public Task RelayStrokeEnded(StrokeEndedDto dto, string targetConnectionId) =>
-        _hubContext.Clients.Client(targetConnectionId).SendAsync("StrokeEnded", dto.StrokeId);
+        _hubContext.Clients.Group(dto.LobbyId).SendAsync("StrokeEnded", dto.StrokeId);
 
     public Task RelayCanvasCleared(CanvasClearedDto dto, string targetConnectionId) =>
-        _hubContext.Clients.Client(targetConnectionId).SendAsync("CanvasCleared");
+        _hubContext.Clients.Group(dto.LobbyId).SendAsync("CanvasCleared");
 }
