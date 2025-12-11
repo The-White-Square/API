@@ -37,9 +37,9 @@ public class LobbyHub : Hub
         await Clients.Group(lobbyId).SendAsync("PlayerJoined", lobbyId, playerName, iconId);
     }
 
-    public async Task SendLobbyMessage(string lobbyId, string message, string playerName)
+    public async Task SendLobbyMessage(string lobbyId, string message, string playerName, int iconId)
     {
-        await Clients.Group(lobbyId).SendAsync("LobbyMessage", message, playerName);
+        await Clients.Group(lobbyId).SendAsync("LobbyMessage", message, playerName, iconId);
     }
 
     // allow clients to invoke GetPlayers via SignalR
