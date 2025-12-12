@@ -40,7 +40,8 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
 // Application services (interfaces)
 builder.Services.AddSingleton<IGalleryService, GalleryService>();
 builder.Services.AddSingleton<ILobbyService, LobbyService>();
-builder.Services.AddSingleton<ILobbyCodeGenerator, RandomLobbyCodeGenerator>(); 
+builder.Services.AddSingleton<ILobbyCodeGenerator, RandomLobbyCodeGenerator>();
+builder.Services.AddSingleton<IDrawingRelay, SignalRDrawingRelay>();
 
 var app = builder.Build();
 

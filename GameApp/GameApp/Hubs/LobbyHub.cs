@@ -1,16 +1,19 @@
 using GameApp.LobbySystem;
 using GameApp.Service;
 using Microsoft.AspNetCore.SignalR;
+using GameApp.Drawing;
 
 namespace GameApp.Hubs;
 
 public class LobbyHub : Hub
 {
-    private readonly ILobbyService _lobbyService; // changed type
+    private readonly ILobbyService _lobbyService;
+    private readonly IDrawingRelay _drawingRelay;
 
-    public LobbyHub(ILobbyService lobbyService) // changed parameter
+    public LobbyHub(ILobbyService lobbyService, IDrawingRelay drawingRelay)
     {
         _lobbyService = lobbyService;
+        _drawingRelay = drawingRelay;
     }
 
     public async Task AddPlayerToLobby(string lobbyId, string playerName, int iconId)
@@ -81,6 +84,56 @@ public class LobbyHub : Hub
         return true;
     }
 
+    // drawer initiates a stroke
+    public async Task BeginStroke(string lobbyId, string strokeId, string color, double width, string tool)
+    {
+        var target = GetDescriberConnection(lobbyId, Context.ConnectionId);
+        if (target is null) return; // silently ignore if no describer yet
+
+        var dto = new StrokeStartedDto(lobbyId, strokeId, color, width, tool);
+        await _drawingRelay.RelayStrokeStarted(dto, target);
+    }
+
+    // drawer sends batched points
+    public async Task AddStrokePoints(string lobbyId, string strokeId, List<PointDto> points)
+    {
+        if (points is null || points.Count == 0) return;
+        var target = GetDescriberConnection(lobbyId, Context.ConnectionId);
+        if (target is null) return;
+
+        var dto = new StrokePointsDto(lobbyId, strokeId, points);
+        await _drawingRelay.RelayStrokePoints(dto, target);
+    }
+
+    public async Task EndStroke(string lobbyId, string strokeId)
+    {
+        var target = GetDescriberConnection(lobbyId, Context.ConnectionId);
+        if (target is null) return;
+
+        var dto = new StrokeEndedDto(lobbyId, strokeId);
+        await _drawingRelay.RelayStrokeEnded(dto, target);
+    }
+
+    public async Task ClearCanvas(string lobbyId)
+    {
+        var target = GetDescriberConnection(lobbyId, Context.ConnectionId);
+        if (target is null) return;
+
+        var dto = new CanvasClearedDto(lobbyId);
+        await _drawingRelay.RelayCanvasCleared(dto, target);
+    }
+
+    // helper obtains describer connection
+    private string? GetDescriberConnection(string lobbyId, string callerConnection)
+    {
+        if (!_lobbyService.LobbyExists(lobbyId)) return null;
+        var lobby = _lobbyService.GetLobby(lobbyId);
+        var describer = lobby.Players.FirstOrDefault(p => p.Role == PlayerRole.Explainer);
+        if (describer is null) return null;
+        if (describer.ConnectionId == callerConnection) return null; // caller is describer; ignore
+        return describer.ConnectionId;
+    }
+    
     // Broadcast GoToFinal so all clients in the lobby navigate to final page
     public async Task GoToFinal(string lobbyId)
     {
