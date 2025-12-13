@@ -1,14 +1,14 @@
 ﻿using System;
 using System.IO;
-using GameApp.Hubs;
-using GameApp.Service;
-using GameApp.Utils;
+using GameApp.Application.Hubs;
+using GameApp.Application.Service;
+using GameApp.Application.Utils;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.EntityFrameworkCore;
-using GameApp.Data;
+using GameApp.Application.Data;
 
 
 var builder = WebApplication.CreateBuilder(args);

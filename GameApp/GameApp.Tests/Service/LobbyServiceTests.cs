@@ -1,14 +1,14 @@
-using GameApp.Controllers;
-using GameApp.LobbySystem;
-using GameApp.Service;
-using GameApp.Data;
-using GameApp.Utils;
+using GameApp.Application.Controllers;
+using GameApp.Application.LobbySystem;
+using GameApp.Application.Service;
+using GameApp.Application.Data;
+using GameApp.Application.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using GameApp.Service.Exceptions;
+using GameApp.Application.Service.Exceptions;
 using Xunit;
 using Microsoft.Extensions.Logging.Abstractions;
-using GameApp.Models;
+using GameApp.Application.Models;
 using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace GameApp.Tests.Service;

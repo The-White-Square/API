@@ -1,4 +1,4 @@
-﻿namespace GameApp.Controllers;
+﻿namespace GameApp.Application.Controllers;
 
 public class UploadImageRequest
 {

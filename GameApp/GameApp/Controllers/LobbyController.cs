@@ -1,13 +1,13 @@
-using GameApp.Hubs;
-using GameApp.LobbySystem;
-using GameApp.Models.Requests;
+using GameApp.Application.Hubs;
+using GameApp.Application.LobbySystem;
+using GameApp.Application.Models.Requests;
 using Microsoft.AspNetCore.Mvc;
-using GameApp.Service;
+using GameApp.Application.Service;
 using Microsoft.AspNetCore.SignalR;
 using System.Linq;
-using GameApp.Service.Exceptions;
+using GameApp.Application.Service.Exceptions;
 
-namespace GameApp.Controllers
+namespace GameApp.Application.Controllers
 {
     [ApiController]
     [Route("lobby")]

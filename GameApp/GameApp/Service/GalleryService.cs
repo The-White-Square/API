@@ -1,10 +1,10 @@
-using GameApp.Controllers;
+using GameApp.Application.Controllers;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using GameApp.Service.Extensions;
+using GameApp.Application.Service.Extensions;
 
-namespace GameApp.Service;
+namespace GameApp.Application.Service;
 
 public class GalleryService : IGalleryService
 {

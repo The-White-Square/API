@@ -2,7 +2,7 @@ using System.Text;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
-using GameApp.Service;
+using GameApp.Application.Service;
 
 namespace GameApp.Tests.Service;
 

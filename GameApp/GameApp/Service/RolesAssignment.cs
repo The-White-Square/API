@@ -1,7 +1,7 @@
-using GameApp.Controllers;
-using GameApp.LobbySystem;
+using GameApp.Application.Controllers;
+using GameApp.Application.LobbySystem;
 
-namespace GameApp.Service;
+namespace GameApp.Application.Service;
 
 public record RolesAssignment(
     string? DescriberConnectionId,

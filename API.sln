@@ -1,13 +1,16 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.36511.14 d17.14
+VisualStudioVersion = 17.14.36511.14
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GameApp", "GameApp\GameApp\GameApp.csproj", "{FC05FFB3-7AC0-4CCD-3BC9-F1CF66630E77}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GameApp.Application", "GameApp\GameApp\GameApp.Application.csproj", "{FC05FFB3-7AC0-4CCD-3BC9-F1CF66630E77}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GameApp.Tests", "GameApp\GameApp.Tests\GameApp.Tests.csproj", "{97993805-7073-496D-92C6-62AC898715AB}"
 EndProject
-
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GameApp.Service", "GameApp\GameApp.Service\GameApp.Service.csproj", "{FD0B50E6-FF5B-49F2-8310-5D20DA35CF22}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GameApp.Integration", "GameApp\GameApp.Integration\GameApp.Integration.csproj", "{44637ED3-4542-48D3-82C2-048A8175E425}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -22,6 +25,14 @@ Global
 		{97993805-7073-496D-92C6-62AC898715AB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{97993805-7073-496D-92C6-62AC898715AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{97993805-7073-496D-92C6-62AC898715AB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FD0B50E6-FF5B-49F2-8310-5D20DA35CF22}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FD0B50E6-FF5B-49F2-8310-5D20DA35CF22}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FD0B50E6-FF5B-49F2-8310-5D20DA35CF22}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FD0B50E6-FF5B-49F2-8310-5D20DA35CF22}.Release|Any CPU.Build.0 = Release|Any CPU
+		{44637ED3-4542-48D3-82C2-048A8175E425}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{44637ED3-4542-48D3-82C2-048A8175E425}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{44637ED3-4542-48D3-82C2-048A8175E425}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{44637ED3-4542-48D3-82C2-048A8175E425}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

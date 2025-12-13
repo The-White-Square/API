@@ -1,4 +1,4 @@
-namespace GameApp.Models
+namespace GameApp.Application.Models
 {
     public struct Time
     {

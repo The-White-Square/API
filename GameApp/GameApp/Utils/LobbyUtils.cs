@@ -1,4 +1,4 @@
-namespace GameApp.Utils;
+namespace GameApp.Application.Utils;
 
 public class LobbyUtils
 {

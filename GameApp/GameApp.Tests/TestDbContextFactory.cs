@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using GameApp.Data;
+using GameApp.Application.Data;
 
 namespace GameApp.Tests;
 

@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using GameApp.Service;
+using GameApp.Application.Service;
 
-namespace GameApp.Controllers;
+namespace GameApp.Application.Controllers;
 
 [ApiController]
 [Route("gallery")]

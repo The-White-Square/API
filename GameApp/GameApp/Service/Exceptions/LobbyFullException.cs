@@ -1,6 +1,6 @@
 using System;
 
-namespace GameApp.Service.Exceptions
+namespace GameApp.Application.Service.Exceptions
 {
     public class LobbyFullException : InvalidOperationException
     {

@@ -1,9 +1,9 @@
 using System.Threading.Tasks;
-using GameApp.Drawing;
+using GameApp.Application.Drawing;
 using Microsoft.AspNetCore.SignalR;
-using GameApp.Hubs;
+using GameApp.Application.Hubs;
 
-namespace GameApp.Service;
+namespace GameApp.Application.Service;
 
 public class SignalRDrawingRelay : IDrawingRelay
 {

@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
-using GameApp.Drawing;
+using GameApp.Application.Drawing;
 
-namespace GameApp.Service;
+namespace GameApp.Application.Service;
 
 public interface IDrawingRelay
 {

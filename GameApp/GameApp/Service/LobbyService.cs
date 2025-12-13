@@ -1,15 +1,15 @@
-using GameApp.Controllers;
-using GameApp.LobbySystem;
-using GameApp.Service.Extensions;
-using GameApp.Utils;
-using GameApp.Data;
+using GameApp.Application.Controllers;
+using GameApp.Application.LobbySystem;
+using GameApp.Application.Service.Extensions;
+using GameApp.Application.Utils;
+using GameApp.Application.Data;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
-using GameApp.Service.Exceptions;
+using GameApp.Application.Service.Exceptions;
 
-namespace GameApp.Service;
+namespace GameApp.Application.Service;
 
 public class LobbyService : ILobbyService
 {

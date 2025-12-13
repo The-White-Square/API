@@ -1,7 +1,7 @@
-using GameApp.Controllers;
+using GameApp.Application.Controllers;
 using Microsoft.AspNetCore.Http;
 
-namespace GameApp.Service;
+namespace GameApp.Application.Service;
 
 public interface IGalleryService
 {

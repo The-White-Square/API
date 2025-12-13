@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace GameApp.Service.Extensions
+namespace GameApp.Application.Service.Extensions
 {
     public static class EnumerableExtensions
     {

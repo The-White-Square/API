@@ -1,9 +1,9 @@
-using GameApp.LobbySystem;
-using GameApp.Service;
+using GameApp.Application.LobbySystem;
+using GameApp.Application.Service;
 using Microsoft.AspNetCore.SignalR;
-using GameApp.Drawing;
+using GameApp.Application.Drawing;
 
-namespace GameApp.Hubs;
+namespace GameApp.Application.Hubs;
 
 public class LobbyHub : Hub
 {

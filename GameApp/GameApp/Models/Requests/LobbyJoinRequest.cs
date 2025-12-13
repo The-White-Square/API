@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace GameApp.Models.Requests;
+namespace GameApp.Application.Models.Requests;
 
 public class LobbyJoinRequest
 {

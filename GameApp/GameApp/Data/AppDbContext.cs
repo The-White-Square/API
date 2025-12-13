@@ -1,7 +1,7 @@
-using GameApp.LobbySystem;
+using GameApp.Application.LobbySystem;
 using Microsoft.EntityFrameworkCore;
 
-namespace GameApp.Data;
+namespace GameApp.Application.Data;
 
 public class AppDbContext : DbContext
 {

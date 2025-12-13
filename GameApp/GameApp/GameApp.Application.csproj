@@ -20,4 +20,9 @@
     <Folder Include="wwwroot\images\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\GameApp.Integration\GameApp.Integration.csproj" />
+    <ProjectReference Include="..\GameApp.Service\GameApp.Service.csproj" />
+  </ItemGroup>
+
 </Project>

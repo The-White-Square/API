@@ -1,15 +1,15 @@
 ﻿using System;
 using System.Linq;
-using GameApp.Controllers;
+using GameApp.Application.Controllers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
-using GameApp.Data;
-using GameApp.LobbySystem;
-using GameApp.Service;
-using GameApp.Service.Exceptions;
-using GameApp.Utils;
+using GameApp.Application.Data;
+using GameApp.Application.LobbySystem;
+using GameApp.Application.Service;
+using GameApp.Application.Service.Exceptions;
+using GameApp.Application.Utils;
 
 namespace GameApp.Tests.Integration;
 

@@ -1,5 +1,5 @@
 ﻿
-namespace GameApp.LobbySystem;
+namespace GameApp.Application.LobbySystem;
 
 public class Lobby
 {

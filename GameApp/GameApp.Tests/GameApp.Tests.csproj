@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\GameApp\GameApp.csproj" />
+    <ProjectReference Include="..\GameApp\GameApp.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>

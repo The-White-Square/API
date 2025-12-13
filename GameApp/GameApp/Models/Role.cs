@@ -1,4 +1,4 @@
-﻿namespace GameApp.LobbySystem;
+﻿namespace GameApp.Application.LobbySystem;
 
 public enum PlayerRole
 {
