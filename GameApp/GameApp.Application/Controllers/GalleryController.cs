@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using GameApp.Application.Service;
+using GameApp.Service.Services;
+using GameApp.Application.Requests;
 
 namespace GameApp.Application.Controllers;
 

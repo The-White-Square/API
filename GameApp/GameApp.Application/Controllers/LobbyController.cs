@@ -1,11 +1,10 @@
-using GameApp.Application.Hubs;
-using GameApp.Application.LobbySystem;
-using GameApp.Application.Models.Requests;
 using Microsoft.AspNetCore.Mvc;
-using GameApp.Application.Service;
 using Microsoft.AspNetCore.SignalR;
-using System.Linq;
-using GameApp.Application.Service.Exceptions;
+using GameApp.Application.Hubs;
+using GameApp.LobbySystem; // domain models (Player)
+using GameApp.Application.Requests;
+using GameApp.Service.Services; // ILobbyService
+using GameApp.Dtos; // ImageDto if you keep DTOs under Application.Controllers
 
 namespace GameApp.Application.Controllers
 {

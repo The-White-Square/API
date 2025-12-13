@@ -1,15 +1,17 @@
 ﻿using System;
 using System.IO;
-using GameApp.Application.Hubs;
-using GameApp.Application.Service;
-using GameApp.Application.Utils;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.EntityFrameworkCore;
-using GameApp.Application.Data;
 
+using GameApp.Application.Hubs;
+using GameApp.Service;
+using GameApp.Service.Services; // IGalleryService, ILobbyService, ILobbyCodeGenerator
+using GameApp.Service.Utils;    // IDrawingRelay, ILobbyCodeGenerator
+using GameApp.Integration.Data; // AppDbContext
+using GameApp.Integration.SignalR; // SignalRDrawingRelay
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,10 +19,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("DevCors", policy =>
-        policy.WithOrigins(
-                "http://localhost:5173",
-                "https://localhost:5173"
-            )
+        policy.WithOrigins("http://localhost:5173", "https://localhost:5173")
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
@@ -33,19 +32,21 @@ builder.Services.AddSwaggerGen();
 // SignalR
 builder.Services.AddSignalR();
 
-// EF Core (SQLite file in app root) - using DbContextFactory for singleton consumers
+// EF Core (SQLite file in app root)
 builder.Services.AddDbContextFactory<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Default") ?? "Data Source=gameapp.db"));
 
-// Application services (interfaces)
+// Application services
 builder.Services.AddSingleton<IGalleryService, GalleryService>();
 builder.Services.AddSingleton<ILobbyService, LobbyService>();
 builder.Services.AddSingleton<ILobbyCodeGenerator, RandomLobbyCodeGenerator>();
+
+// Integration adapters
 builder.Services.AddSingleton<IDrawingRelay, SignalRDrawingRelay>();
 
 var app = builder.Build();
 
-// Create database schema if missing (use factory instead of direct DbContext resolution)
+// Create database schema if missing
 using (var scope = app.Services.CreateScope())
 {
     var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
