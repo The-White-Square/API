@@ -2,9 +2,9 @@ bin/
 obj/
 .vs/
 .idea/
-/GameApp/GameApp/gameapp.db-shm
-/GameApp/GameApp/gameapp.db-wal
+/DB_Data/GameApp.Application/gameapp.db-shm
+/DB_Data/GameApp.Application/gameapp.db-wal
 TestResults/
 coverage-report/
 coverage/
-/GameApp/GameApp/gameapp.db
+/DB_Data/GameApp.Application/gameapp.db

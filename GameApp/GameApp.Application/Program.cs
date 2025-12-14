@@ -33,12 +33,21 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Resolve absolute SQLite path into a folder under content root
+var contentRoot = builder.Environment.ContentRootPath;
+var dbFolder = Path.Combine(contentRoot, "DB_Data");
+Directory.CreateDirectory(dbFolder);
+var dbPath = Path.Combine(dbFolder, "gameapp.db");
+
+// Override the connection string with the absolute path
+builder.Configuration["ConnectionStrings:Default"] = $"Data Source={dbPath}";
+
 // SignalR
 builder.Services.AddSignalR();
 
-// EF Core (SQLite file in app root)
+// EF Core with the resolved path
 builder.Services.AddDbContextFactory<AppDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("Default") ?? "Data Source=gameapp.db"));
+    options.UseSqlite(builder.Configuration.GetConnectionString("Default")));
 
 // Integration repositories
 builder.Services.AddScoped<ILobbyRepository, EfLobbyRepository>();
@@ -57,10 +66,9 @@ var app = builder.Build();
 
 // Ensure images folder exists (based on configured GalleryOptions)
 var galleryOpts = app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<GalleryOptions>>().Value;
-var contentRoot = app.Environment.ContentRootPath;
 var imagesRoot = Path.IsPathRooted(galleryOpts.ImagesRoot)
     ? galleryOpts.ImagesRoot
-    : Path.Combine(contentRoot, galleryOpts.ImagesRoot);
+    : Path.Combine(app.Environment.ContentRootPath, galleryOpts.ImagesRoot);
 Directory.CreateDirectory(imagesRoot);
 
 // Create database schema if missing
