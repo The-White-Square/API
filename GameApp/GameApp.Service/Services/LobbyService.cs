@@ -1,12 +1,10 @@
 using GameApp.Service.Models;
 using GameApp.Service.Extensions;
 using GameApp.Service.Utils;
-using GameApp.Integration.Data;
-using System.Linq;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using GameApp.Service.Exceptions;
+using GameApp.Service.Dtos;
 
 namespace GameApp.Service.Services;
 
@@ -14,18 +12,23 @@ public class LobbyService : ILobbyService
 {
     private readonly ConcurrentDictionary<string, Lobby> _lobbies = new();
     private readonly IGalleryService _gallery;
-    private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly ILobbyCodeGenerator _codeGenerator;
     private readonly ILogger<LobbyService> _logger;
 
+    // New: repositories abstract persistence (implemented in Integration)
+    private readonly ILobbyRepository _lobbyRepo;
+    private readonly IPlayerRepository _playerRepo;
+
     public LobbyService(
         IGalleryService gallery,
-        IDbContextFactory<AppDbContext> dbFactory,
+        ILobbyRepository lobbyRepo,
+        IPlayerRepository playerRepo,
         ILobbyCodeGenerator codeGenerator,
         ILogger<LobbyService> logger)
     {
         _gallery = gallery;
-        _dbFactory = dbFactory;
+        _lobbyRepo = lobbyRepo;
+        _playerRepo = playerRepo;
         _codeGenerator = codeGenerator;
         _logger = logger;
         _logger.LogInformation("LobbyService initialized.");
@@ -57,7 +60,7 @@ public class LobbyService : ILobbyService
         }
         else
         {
-            // Update in-memory player to keep consistency with DB update logic below
+            // Update in-memory player to keep consistency with persistence update logic below
             existingInMemory.iconId = player.iconId;
             existingInMemory.Role = player.Role;
             if (!string.IsNullOrEmpty(player.ConnectionId))
@@ -66,8 +69,8 @@ public class LobbyService : ILobbyService
             _logger.LogInformation("Player {Player} updated in-memory in lobby {LobbyId}.", player.DisplayName, lobbyId);
         }
 
-        using var db = _dbFactory.CreateDbContext();
-        var existing = db.Players.FirstOrDefault(p => p.LobbyId == lobby.Id && p.DisplayName == player.DisplayName);
+        // Persist add/update
+        var existing = _playerRepo.GetByLobbyAndName(lobby.Id, player.DisplayName);
         if (existing is null)
         {
             var dbPlayer = new Player(player.DisplayName, player.iconId)
@@ -76,7 +79,7 @@ public class LobbyService : ILobbyService
                 Role = player.Role,
                 ConnectionId = player.ConnectionId
             };
-            db.Players.Add(dbPlayer);
+            _playerRepo.Add(dbPlayer);
             _logger.LogDebug("Persisted new player {Player} in lobby {LobbyId}.", player.DisplayName, lobbyId);
         }
         else
@@ -84,10 +87,10 @@ public class LobbyService : ILobbyService
             existing.iconId = player.iconId;
             existing.Role = player.Role;
             existing.ConnectionId = player.ConnectionId;
-            db.Players.Update(existing);
+            _playerRepo.Update(existing);
             _logger.LogDebug("Updated existing player {Player} in lobby {LobbyId}.", player.DisplayName, lobbyId);
         }
-        db.SaveChanges();
+        _playerRepo.SaveChanges();
     }
 
     public Lobby CreateLobby()
@@ -104,9 +107,8 @@ public class LobbyService : ILobbyService
         var lobby = new Lobby(lobbyCode);
         if (_lobbies.TryAdd(lobbyCode, lobby))
         {
-            using var db = _dbFactory.CreateDbContext();
-            db.Lobbies.Add(lobby);
-            db.SaveChanges();
+            _lobbyRepo.Add(lobby);
+            _lobbyRepo.SaveChanges();
             return lobby;
         }
 
@@ -118,7 +120,15 @@ public class LobbyService : ILobbyService
         if (_lobbies.TryGetValue(lobbyId, out var existing))
             return existing;
 
-        // Attempt to create if missing; handles races safely
+        // Attempt to load from persistence first
+        var loaded = _lobbyRepo.GetByCode(lobbyId);
+        if (loaded is not null)
+        {
+            _lobbies.TryAdd(lobbyId, loaded);
+            return loaded;
+        }
+
+        // Create if missing; handles races safely
         return CreateLobbyInternal(lobbyId);
     }
 
@@ -134,7 +144,7 @@ public class LobbyService : ILobbyService
         var player = lobby.Players.FirstOrDefault(p => string.Equals(p.DisplayName, displayName, StringComparison.OrdinalIgnoreCase));
         if (player is null)
         {
-            player = new Player(displayName, iconId) { ConnectionId = connectionId };
+            player = new Player(displayName, iconId) { ConnectionId = connectionId, LobbyId = lobby.Id };
             lobby.Players.Add(player);
             _logger.LogInformation("Player connection added: {Player} to lobby {LobbyId}", displayName, lobbyId);
         }
@@ -145,8 +155,7 @@ public class LobbyService : ILobbyService
             _logger.LogInformation("Player connection updated: {Player} in lobby {LobbyId}", displayName, lobbyId);
         }
 
-        using var db = _dbFactory.CreateDbContext();
-        var dbPlayer = db.Players.FirstOrDefault(p => p.LobbyId == lobby.Id && p.DisplayName == displayName);
+        var dbPlayer = _playerRepo.GetByLobbyAndName(lobby.Id, displayName);
         if (dbPlayer is null)
         {
             dbPlayer = new Player(displayName, iconId)
@@ -154,15 +163,15 @@ public class LobbyService : ILobbyService
                 LobbyId = lobby.Id,
                 ConnectionId = connectionId
             };
-            db.Players.Add(dbPlayer);
+            _playerRepo.Add(dbPlayer);
         }
         else
         {
             dbPlayer.iconId = iconId;
             dbPlayer.ConnectionId = connectionId;
-            db.Players.Update(dbPlayer);
+            _playerRepo.Update(dbPlayer);
         }
-        db.SaveChanges();
+        _playerRepo.SaveChanges();
     }
 
     public ImageDto? GetOrAssignLobbyImage(string lobbyId)
@@ -198,13 +207,13 @@ public class LobbyService : ILobbyService
         lobby.SelectedImageUrl = picked.Url;
 
         // persist selected image on lobby
-        using var db = _dbFactory.CreateDbContext();
-        var lobbyRow = db.Lobbies.FirstOrDefault(l => l.Id == lobby.Id);
+        var lobbyRow = _lobbyRepo.GetById(lobby.Id);
         if (lobbyRow is not null)
         {
             lobbyRow.SelectedImageId = lobby.SelectedImageId;
             lobbyRow.SelectedImageUrl = lobby.SelectedImageUrl;
-            db.SaveChanges();
+            _lobbyRepo.Update(lobbyRow);
+            _lobbyRepo.SaveChanges();
         }
 
         _logger.LogInformation("Assigned image {ImageId} to lobby {LobbyId}.", picked.Id, lobbyId);
@@ -251,15 +260,14 @@ public class LobbyService : ILobbyService
 
         var image = GetOrAssignLobbyImage(lobbyId);
 
-        using var db = _dbFactory.CreateDbContext();
-        var dbPlayers = db.Players.Where(p => p.LobbyId == lobby.Id &&
-            (p.DisplayName == describer.DisplayName || p.DisplayName == drawer.DisplayName)).ToList();
+        var dbPlayers = _playerRepo.GetByLobbyIds(lobby.Id, new[] { describer.DisplayName, drawer.DisplayName });
         foreach (var p in dbPlayers)
         {
             if (p.DisplayName == describer.DisplayName) p.Role = PlayerRole.Explainer;
             if (p.DisplayName == drawer.DisplayName) p.Role = PlayerRole.Artist;
+            _playerRepo.Update(p);
         }
-        if (dbPlayers.Count > 0) db.SaveChanges();
+        if (dbPlayers.Count > 0) _playerRepo.SaveChanges();
 
         _logger.LogInformation("Roles assigned in lobby {LobbyId}: Describer={Describer}, Drawer={Drawer}, ImageAssigned={HasImage}",
             lobbyId, describer.DisplayName, drawer.DisplayName, image is not null);

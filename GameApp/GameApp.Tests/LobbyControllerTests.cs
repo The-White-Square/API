@@ -1,6 +1,6 @@
 using GameApp.Application.Controllers;
 using GameApp.Application.Hubs;
-using GameApp.LobbySystem;
+using GameApp.Service.Models;
 using GameApp.Application.Requests;
 using GameApp.Service.Services;
 using GameApp.Dtos;

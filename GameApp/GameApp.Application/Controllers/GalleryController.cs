@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using GameApp.Service.Services;
 using GameApp.Application.Requests;
+using GameApp.Service.Dtos;
 
 namespace GameApp.Application.Controllers;
 
@@ -33,7 +34,13 @@ public class GalleryController : ControllerBase
     {
         try
         {
-            var dto = await _gallery.SaveImageAsync(request.File);
+            var file = request.File;
+            var dto = await _gallery.SaveImageAsync(
+                file.OpenReadStream(),
+                file.FileName,
+                file.Length,
+                HttpContext.RequestAborted
+            );
             return Created(dto.Url, dto);
         }
         catch (ArgumentException ae)

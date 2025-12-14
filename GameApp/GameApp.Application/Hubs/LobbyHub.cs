@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
-using GameApp.Dtos;           // your drawing DTOs
-using GameApp.LobbySystem;       // PlayerRole
+using GameApp.Service.Dtos;           // your drawing DTOs
+using GameApp.Service.Models;       // PlayerRole
 using GameApp.Service.Services;  // ILobbyService
 using GameApp.Service.Utils;     // IDrawingRelay
 

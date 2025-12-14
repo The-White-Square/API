@@ -17,7 +17,7 @@ namespace GameApp.Integration.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.9");
 
-            modelBuilder.Entity("GameApp.LobbySystem.Lobby", b =>
+            modelBuilder.Entity("GameApp.Service.Models.Lobby", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -48,7 +48,7 @@ namespace GameApp.Integration.Migrations
                     b.ToTable("Lobbies");
                 });
 
-            modelBuilder.Entity("GameApp.LobbySystem.Player", b =>
+            modelBuilder.Entity("GameApp.Service.Models.Player", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -80,9 +80,9 @@ namespace GameApp.Integration.Migrations
                     b.ToTable("Players");
                 });
 
-            modelBuilder.Entity("GameApp.LobbySystem.Player", b =>
+            modelBuilder.Entity("GameApp.Service.Models.Player", b =>
                 {
-                    b.HasOne("GameApp.LobbySystem.Lobby", "Lobby")
+                    b.HasOne("GameApp.Service.Models.Lobby", "Lobby")
                         .WithMany("Players")
                         .HasForeignKey("LobbyId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -91,7 +91,7 @@ namespace GameApp.Integration.Migrations
                     b.Navigation("Lobby");
                 });
 
-            modelBuilder.Entity("GameApp.LobbySystem.Lobby", b =>
+            modelBuilder.Entity("GameApp.Service.Models.Lobby", b =>
                 {
                     b.Navigation("Players");
                 });

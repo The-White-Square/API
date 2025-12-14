@@ -2,6 +2,8 @@ using System.Threading.Tasks;
 using GameApp.Service.Models;
 using Microsoft.AspNetCore.SignalR;
 using GameApp.Service.Utils;
+using GameApp.Service.Dtos;
+using GameApp.Application.Hubs;
 
 namespace GameApp.Integration.SignalR;
 

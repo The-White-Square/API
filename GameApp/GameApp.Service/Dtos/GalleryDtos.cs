@@ -1,3 +1,3 @@
-﻿namespace GameApp.Dtos;
+﻿namespace GameApp.Service.Dtos;
 
 public record ImageDto(string Id, string Url, long Bytes);

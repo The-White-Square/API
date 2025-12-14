@@ -1,5 +1,4 @@
-﻿
-namespace GameApp.LobbySystem;
+﻿namespace GameApp.Service.Models;
 
 public class Lobby
 {

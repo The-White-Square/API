@@ -1,5 +1,5 @@
 using GameApp.Service.Models;
-using GameApp.LobbySystem;
+using GameApp.Service.Dtos;
 
 namespace GameApp.Service.Services;
 

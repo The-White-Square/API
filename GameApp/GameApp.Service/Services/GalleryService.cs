@@ -1,109 +1,40 @@
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using GameApp.Service.Extensions;
-using GameApp.Service.Services;
-using GameApp.Dtos;
+using GameApp.Service.Dtos;
 
 namespace GameApp.Service.Services;
 
 public class GalleryService : IGalleryService
 {
-    private readonly string _imagesRoot;
+    private readonly IGalleryRepository _repo;
     private readonly ILogger<GalleryService> _logger;
-    private static readonly string[] AllowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
 
-    public GalleryService(IWebHostEnvironment env, ILogger<GalleryService> logger)
+    public GalleryService(IGalleryRepository repo, ILogger<GalleryService> logger)
     {
+        _repo = repo;
         _logger = logger;
-        _imagesRoot = Path.Combine(env.WebRootPath ?? "wwwroot", "images");
-        Directory.CreateDirectory(_imagesRoot);
-        _logger.LogInformation("GalleryService initialized. Images root: {ImagesRoot}", _imagesRoot);
     }
 
     public IEnumerable<ImageDto> ListImages()
     {
-        var files = Directory.EnumerateFiles(_imagesRoot)
-            .Where(f => AllowedExtensions.Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase))
-            .Select(f => new ImageDto(
-                Id: Path.GetFileName(f),
-                Url: $"/images/{Path.GetFileName(f)}",
-                Bytes: new FileInfo(f).Length
-            ))
-            .OrderBy(i => i.Id)
-            .ToList();
-
-        _logger.LogDebug("Listed {Count} images.", files.Count);
-        return files;
+        var images = _repo.ListImages().OrderBy(i => i.Id).ToList();
+        _logger.LogDebug("Listed {Count} images.", images.Count);
+        return images;
     }
 
     public ImageDto? GetRandomImage()
     {
-        var files = Directory.EnumerateFiles(_imagesRoot)
-            .Where(f => AllowedExtensions.Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase))
-            .ToList();
-
-        var pick = files.GetRandom();
-        if (pick is null)
+        var dto = _repo.GetRandomImage();
+        if (dto is null)
         {
             _logger.LogWarning("GetRandomImage: No images available.");
             return null;
         }
-
-        var dto = new ImageDto(
-            Id: Path.GetFileName(pick),
-            Url: $"/images/{Path.GetFileName(pick)}",
-            Bytes: new FileInfo(pick).Length
-        );
-
         _logger.LogInformation("Random image selected: {ImageId}", dto.Id);
         return dto;
     }
 
-    // Save uploaded file, validate extension, return ImageDto
-    public async Task<ImageDto> SaveImageAsync(IFormFile file)
-    {
-        if (file is null || file.Length == 0)
-        {
-            _logger.LogWarning("Attempted to save empty file.");
-            throw new ArgumentException("No file uploaded.", nameof(file));
-        }
+    public Task<ImageDto> SaveImageAsync(Stream fileStream, string fileName, long length, CancellationToken ct = default)
+        => _repo.SaveImageAsync(fileStream, fileName, length, ct);
 
-        var ext = Path.GetExtension(file.FileName);
-        if (!AllowedExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
-        {
-            _logger.LogWarning("Rejected file with extension {Extension}", ext);
-            throw new InvalidOperationException("Only .jpg, .jpeg, .png, .gif, .webp are allowed.");
-        }
-
-        var safeName = $"{Guid.NewGuid()}{ext.ToLowerInvariant()}";
-        var savePath = Path.Combine(_imagesRoot, safeName);
-
-        await using (var fs = System.IO.File.Create(savePath))
-        {
-            await file.CopyToAsync(fs);
-        }
-
-        _logger.LogInformation("Saved image {ImageId} ({Bytes} bytes)", safeName, file.Length);
-
-        return new ImageDto(
-            Id: safeName,
-            Url: $"/images/{safeName}",
-            Bytes: file.Length
-        );
-    }
-
-    public string? GetImageFilePath(string imageId)
-    {
-        if (string.IsNullOrEmpty(imageId))
-        {
-            _logger.LogDebug("GetImageFilePath called with empty id.");
-            return null;
-        }
-
-        var path = Path.Combine(_imagesRoot, imageId);
-        var exists = File.Exists(path);
-        _logger.LogDebug("Image path lookup for {ImageId}. Exists: {Exists}", imageId, exists);
-        return exists ? path : null;
-    }
+    public string? GetImageFilePath(string imageId) => _repo.GetImageFilePath(imageId);
 }

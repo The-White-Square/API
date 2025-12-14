@@ -12,6 +12,7 @@ using GameApp.Service.Services; // IGalleryService, ILobbyService, ILobbyCodeGen
 using GameApp.Service.Utils;    // IDrawingRelay, ILobbyCodeGenerator
 using GameApp.Integration.Data; // AppDbContext
 using GameApp.Integration.SignalR; // SignalRDrawingRelay
+using GameApp.Integration.Gallery;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,13 +37,17 @@ builder.Services.AddSignalR();
 builder.Services.AddDbContextFactory<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Default") ?? "Data Source=gameapp.db"));
 
-// Application services
-builder.Services.AddSingleton<IGalleryService, GalleryService>();
-builder.Services.AddSingleton<ILobbyService, LobbyService>();
+// Integration repositories
+builder.Services.AddScoped<ILobbyRepository, EfLobbyRepository>();
+builder.Services.AddScoped<IPlayerRepository, EfPlayerRepository>();
+
+// Service layer registrations (existing ones)
+builder.Services.AddScoped<IGalleryService, GalleryService>();
+builder.Services.AddScoped<ILobbyService, LobbyService>();
 builder.Services.AddSingleton<ILobbyCodeGenerator, RandomLobbyCodeGenerator>();
 
-// Integration adapters
-builder.Services.AddSingleton<IDrawingRelay, SignalRDrawingRelay>();
+// Register repository (choose lifetime as needed)
+builder.Services.AddSingleton<IGalleryRepository, FileSystemGalleryRepository>();
 
 var app = builder.Build();
 

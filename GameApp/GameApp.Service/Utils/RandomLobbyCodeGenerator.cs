@@ -1,4 +1,4 @@
-namespace GameApp.Services.Utils;
+namespace GameApp.Service.Utils;
 
 public class RandomLobbyCodeGenerator : ILobbyCodeGenerator
 {
