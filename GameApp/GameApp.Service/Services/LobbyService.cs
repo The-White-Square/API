@@ -36,7 +36,23 @@ public class LobbyService : ILobbyService
 
     public Lobby GetLobby(string lobbyId) => _lobbies[lobbyId];
 
-    public bool LobbyExists(string lobbyId) => _lobbies.ContainsKey(lobbyId);
+    public bool LobbyExists(string lobbyId)
+    {
+        // Fast path: check in-memory
+        if (_lobbies.ContainsKey(lobbyId))
+            return true;
+
+        // Attempt to load from persistence to support scenarios where the app restarted
+        var loaded = _lobbyRepo.GetByCode(lobbyId);
+        if (loaded is not null)
+        {
+            _lobbies.TryAdd(lobbyId, loaded);
+            _logger.LogDebug("Lobby {LobbyId} loaded from persistence into memory.", lobbyId);
+            return true;
+        }
+
+        return false;
+    }
     public IEnumerable<Lobby> GetAllLobbies() => _lobbies.Values;
 
     public void AddPlayer(Player player, string lobbyId)

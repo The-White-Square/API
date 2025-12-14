@@ -74,7 +74,7 @@ namespace GameApp.Application.Controllers
 
             var lobby = _lobbiesService.GetLobby(lobbyId);
             var players = lobby.Players
-                .Select(p => new PlayerResponse { Id = p.Id, DisplayName = p.DisplayName, IconId = p.iconId })
+                .Select(p => new PlayerResponse { Id = p.Id.ToString(), DisplayName = p.DisplayName, IconId = p.iconId })
                 .ToList();
 
             return Ok(players);

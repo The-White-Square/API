@@ -8,14 +8,14 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace GameApp.Application.Migrations
+namespace GameApp.Integration.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     [Migration("20251106130006_InitialCreate")]
-    partial class InitialCreate
+    partial class InitialCreate : Migration
     {
         /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.9");
