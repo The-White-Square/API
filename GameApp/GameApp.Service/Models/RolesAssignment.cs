@@ -1,3 +1,5 @@
+using GameApp.LobbySystem;
+using GameApp.Dtos;
 namespace GameApp.Service.Models;
 
 public record RolesAssignment(

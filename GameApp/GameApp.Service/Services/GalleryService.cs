@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using GameApp.Service.Extensions;
+using GameApp.Service.Services;
+using GameApp.Dtos;
 
 namespace GameApp.Service.Services;
 

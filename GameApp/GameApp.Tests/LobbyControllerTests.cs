@@ -1,8 +1,9 @@
 using GameApp.Application.Controllers;
 using GameApp.Application.Hubs;
-using GameApp.Application.LobbySystem;
-using GameApp.Application.Models.Requests;
-using GameApp.Application.Service;
+using GameApp.LobbySystem;
+using GameApp.Application.Requests;
+using GameApp.Service.Services;
+using GameApp.Dtos;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 

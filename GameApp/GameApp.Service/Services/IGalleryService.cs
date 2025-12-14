@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using GameApp.Dtos;
 
 namespace GameApp.Service.Services;
 

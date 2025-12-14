@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using GameApp.Service.Models;
+using GameApp.Dtos;
 
 namespace GameApp.Service.Utils;
 
