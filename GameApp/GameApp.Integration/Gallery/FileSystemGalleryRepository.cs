@@ -1,7 +1,8 @@
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using GameApp.Service.Services;
 using GameApp.Service.Dtos;
+using GameApp.Service.Options;
 
 namespace GameApp.Integration.Gallery;
 
@@ -11,10 +12,10 @@ public class FileSystemGalleryRepository : IGalleryRepository
     private readonly ILogger<FileSystemGalleryRepository> _logger;
     private static readonly string[] AllowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
 
-    public FileSystemGalleryRepository(IWebHostEnvironment env, ILogger<FileSystemGalleryRepository> logger)
+    public FileSystemGalleryRepository(IOptions<GalleryOptions> options, ILogger<FileSystemGalleryRepository> logger)
     {
         _logger = logger;
-        _imagesRoot = Path.Combine(env.WebRootPath ?? "wwwroot", "images");
+        _imagesRoot = options.Value.ImagesRoot;
         Directory.CreateDirectory(_imagesRoot);
         _logger.LogInformation("Gallery repository initialized. Images root: {ImagesRoot}", _imagesRoot);
     }

@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using GameApp.Service.Services;
 using GameApp.Application.Requests;
-using GameApp.Service.Dtos;
+using GameApp.Application.Models;
 
 namespace GameApp.Application.Controllers;
 
@@ -17,20 +17,26 @@ public class GalleryController : ControllerBase
     }
 
     [HttpGet]
-    public ActionResult<IEnumerable<ImageDto>> List() => Ok(_gallery.ListImages());
+    public ActionResult<IEnumerable<ImageResponse>> List()
+    {
+        var dtos = _gallery.ListImages();
+        var results = dtos.Select(d => new ImageResponse { Id = d.Id, Url = d.Url }).ToList();
+        return Ok(results);
+    }
 
     [HttpGet("random")]
-    public ActionResult<ImageDto> GetRandomImage()
+    public ActionResult<ImageResponse> GetRandomImage()
     {
         var dto = _gallery.GetRandomImage();
         if (dto is null) return NotFound("No images found.");
-        return Ok(dto);
+        var result = new ImageResponse { Id = dto.Id, Url = dto.Url };
+        return Ok(result);
     }
 
     [HttpPost]
     [RequestSizeLimit(20_000_000)] // 20 MB
     [Consumes("multipart/form-data")]
-    public async Task<ActionResult<ImageDto>> Upload([FromForm] UploadImageRequest request)
+    public async Task<ActionResult<ImageResponse>> Upload([FromForm] UploadImageRequest request)
     {
         try
         {
@@ -41,7 +47,8 @@ public class GalleryController : ControllerBase
                 file.Length,
                 HttpContext.RequestAborted
             );
-            return Created(dto.Url, dto);
+            var result = new ImageResponse { Id = dto.Id, Url = dto.Url };
+            return Created(result.Url, result);
         }
         catch (ArgumentException ae)
         {

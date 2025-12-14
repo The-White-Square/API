@@ -6,25 +6,39 @@ namespace GameApp.Integration.Data;
 
 public class EfLobbyRepository : ILobbyRepository
 {
-    private readonly AppDbContext _db;
+    private readonly IDbContextFactory<AppDbContext> _dbFactory;
 
-    public EfLobbyRepository(AppDbContext db)
+    public EfLobbyRepository(IDbContextFactory<AppDbContext> dbFactory)
     {
-        _db = db;
+        _dbFactory = dbFactory;
     }
 
     public Lobby? GetByCode(string code)
-        => _db.Lobbies.AsNoTracking().FirstOrDefault(l => l.LobbyCode == code);
+    {
+        using var db = _dbFactory.CreateDbContext();
+        return db.Lobbies.AsNoTracking().FirstOrDefault(l => l.LobbyCode == code);
+    }
 
     public Lobby? GetById(Guid id)
-        => _db.Lobbies.FirstOrDefault(l => l.Id == id);
+    {
+        using var db = _dbFactory.CreateDbContext();
+        return db.Lobbies.FirstOrDefault(l => l.Id == id);
+    }
 
     public void Add(Lobby lobby)
-        => _db.Lobbies.Add(lobby);
+    {
+        using var db = _dbFactory.CreateDbContext();
+        db.Lobbies.Add(lobby);
+        db.SaveChanges();
+    }
 
     public void Update(Lobby lobby)
-        => _db.Lobbies.Update(lobby);
+    {
+        using var db = _dbFactory.CreateDbContext();
+        db.Lobbies.Update(lobby);
+        db.SaveChanges();
+    }
 
-    public void SaveChanges()
-        => _db.SaveChanges();
+    // With per-operation contexts, SaveChanges is a no-op to keep interface compatibility.
+    public void SaveChanges() { }
 }

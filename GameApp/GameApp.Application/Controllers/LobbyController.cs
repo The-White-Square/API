@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using GameApp.Application.Hubs;
-using GameApp.Service.Models; // domain models (Player)
 using GameApp.Application.Requests;
-using GameApp.Service.Services; // ILobbyService
-using GameApp.Service.Dtos; // ImageDto if you keep DTOs under Application.Controllers
+using GameApp.Application.Models;
+using GameApp.Service.Models;
+using GameApp.Service.Services;
 using GameApp.Service.Exceptions;
 
 namespace GameApp.Application.Controllers
@@ -19,21 +19,18 @@ namespace GameApp.Application.Controllers
         public LobbyController(ILobbyService lobbiesService, IHubContext<LobbyHub> hubContext)
         {
             _lobbiesService = lobbiesService;
-            _hubContext =  hubContext;
+            _hubContext = hubContext;
         }
-        
+
         [HttpPost("join")]
-        public async Task<IActionResult> JoinLobby([FromBody] LobbyJoinRequest request)    
-        { 
-        // if lobbyId == empty -> create lobby
-        // if lobbyId right -> add to lobby
-        // else error
-            var lobbyId = request.LobbyId.ToLower();
+        public async Task<IActionResult> JoinLobby([FromBody] LobbyJoinRequest request)
+        {
+            var lobbyId = request.LobbyId?.ToLower() ?? string.Empty;
             if (string.IsNullOrEmpty(lobbyId))
-            {// create
-                Lobby lobby = _lobbiesService.CreateLobby();
+            {
+                var lobby = _lobbiesService.CreateLobby();
                 _lobbiesService.AddPlayer(new Player(request.Username, request.IconId), lobby.LobbyCode);
-                return Ok( new{ lobby.LobbyCode});
+                return Ok(new { lobby.LobbyCode });
             }
 
             if (_lobbiesService.LobbyExists(lobbyId))
@@ -56,7 +53,7 @@ namespace GameApp.Application.Controllers
         }
         // return lobby selected image, assigns if not yet assigned
         [HttpGet("{lobbyId}/image")]
-        public ActionResult<ImageDto> GetLobbyImage(string lobbyId)
+        public ActionResult<ImageResponse> GetLobbyImage(string lobbyId)
         {
             if (!_lobbiesService.LobbyExists(lobbyId))
                 return NotFound("Lobby not found");
@@ -65,20 +62,21 @@ namespace GameApp.Application.Controllers
             if (dto is null)
                 return NotFound("No images available.");
 
-            return Ok(dto);
+            var response = new ImageResponse { Url = dto.Url, Id = dto.Id };
+            return Ok(response);
         }
 
-        // return list of players (id + display name + icon id)
         [HttpGet("{lobbyId}/players")]
-        public ActionResult<IEnumerable<object>> GetLobbyPlayers(string lobbyId)
+        public ActionResult<IEnumerable<PlayerResponse>> GetLobbyPlayers(string lobbyId)
         {
             if (!_lobbiesService.LobbyExists(lobbyId))
                 return NotFound("Lobby not found");
 
             var lobby = _lobbiesService.GetLobby(lobbyId);
             var players = lobby.Players
-                .Select(p => new { id = p.Id, displayName = p.DisplayName, iconId = p.iconId })
+                .Select(p => new PlayerResponse { Id = p.Id, DisplayName = p.DisplayName, IconId = p.iconId })
                 .ToList();
+
             return Ok(players);
         }
     }

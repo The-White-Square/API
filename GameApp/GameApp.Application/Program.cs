@@ -7,14 +7,17 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.EntityFrameworkCore;
 
 using GameApp.Application.Hubs;
-using GameApp.Service;
-using GameApp.Service.Services; // IGalleryService, ILobbyService, ILobbyCodeGenerator
+using GameApp.Service.Services; // IGalleryService, ILobbyService
 using GameApp.Service.Utils;    // IDrawingRelay, ILobbyCodeGenerator
-using GameApp.Integration.Data; // AppDbContext
-using GameApp.Integration.SignalR; // SignalRDrawingRelay
-using GameApp.Integration.Gallery;
+using GameApp.Integration.Data; // AppDbContext, EfLobbyRepository, EfPlayerRepository
+using GameApp.Application.SignalR; // SignalRDrawingRelay
+using GameApp.Integration.Gallery; // FileSystemGalleryRepository
+using GameApp.Service.Options; // GalleryOptions
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Bind options
+builder.Services.Configure<GalleryOptions>(builder.Configuration.GetSection("Gallery"));
 
 // CORS for local frontend dev servers (Vite default 5173)
 builder.Services.AddCors(options =>
@@ -40,16 +43,25 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
 // Integration repositories
 builder.Services.AddScoped<ILobbyRepository, EfLobbyRepository>();
 builder.Services.AddScoped<IPlayerRepository, EfPlayerRepository>();
+builder.Services.AddSingleton<IGalleryRepository, FileSystemGalleryRepository>();
 
-// Service layer registrations (existing ones)
+// Service layer registrations
 builder.Services.AddScoped<IGalleryService, GalleryService>();
 builder.Services.AddScoped<ILobbyService, LobbyService>();
 builder.Services.AddSingleton<ILobbyCodeGenerator, RandomLobbyCodeGenerator>();
 
-// Register repository (choose lifetime as needed)
-builder.Services.AddSingleton<IGalleryRepository, FileSystemGalleryRepository>();
+// SignalR drawing relay adapter (now in Application)
+builder.Services.AddSingleton<IDrawingRelay, SignalRDrawingRelay>();
 
 var app = builder.Build();
+
+// Ensure images folder exists (based on configured GalleryOptions)
+var galleryOpts = app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<GalleryOptions>>().Value;
+var contentRoot = app.Environment.ContentRootPath;
+var imagesRoot = Path.IsPathRooted(galleryOpts.ImagesRoot)
+    ? galleryOpts.ImagesRoot
+    : Path.Combine(contentRoot, galleryOpts.ImagesRoot);
+Directory.CreateDirectory(imagesRoot);
 
 // Create database schema if missing
 using (var scope = app.Services.CreateScope())
@@ -77,14 +89,8 @@ app.UseCors("DevCors");
 app.UseAuthorization();
 
 app.MapControllers();
-
-// Map the lobby SignalR hub
 app.MapHub<LobbyHub>("/hubs/lobby");
 
-// make sure images folder exists so GalleryService / static files works
-var env = app.Services.GetRequiredService<IWebHostEnvironment>();
-var imagesRoot = Path.Combine(env.WebRootPath ?? "wwwroot", "images");
-Directory.CreateDirectory(imagesRoot);
-
 app.Run();
-public partial class Program { } // for usage in integration tests.
+
+public partial class Program { }

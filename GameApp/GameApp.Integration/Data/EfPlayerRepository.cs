@@ -6,28 +6,40 @@ namespace GameApp.Integration.Data;
 
 public class EfPlayerRepository : IPlayerRepository
 {
-    private readonly AppDbContext _db;
+    private readonly IDbContextFactory<AppDbContext> _dbFactory;
 
-    public EfPlayerRepository(AppDbContext db)
+    public EfPlayerRepository(IDbContextFactory<AppDbContext> dbFactory)
     {
-        _db = db;
+        _dbFactory = dbFactory;
     }
 
     public Player? GetByLobbyAndName(Guid lobbyId, string displayName)
-        => _db.Players.FirstOrDefault(p => p.LobbyId == lobbyId && p.DisplayName == displayName);
+    {
+        using var db = _dbFactory.CreateDbContext();
+        return db.Players.FirstOrDefault(p => p.LobbyId == lobbyId && p.DisplayName == displayName);
+    }
 
     public List<Player> GetByLobbyIds(Guid lobbyId, IEnumerable<string> displayNames)
     {
+        using var db = _dbFactory.CreateDbContext();
         var names = displayNames.ToList();
-        return _db.Players.Where(p => p.LobbyId == lobbyId && names.Contains(p.DisplayName)).ToList();
+        return db.Players.Where(p => p.LobbyId == lobbyId && names.Contains(p.DisplayName)).ToList();
     }
 
     public void Add(Player player)
-        => _db.Players.Add(player);
+    {
+        using var db = _dbFactory.CreateDbContext();
+        db.Players.Add(player);
+        db.SaveChanges();
+    }
 
     public void Update(Player player)
-        => _db.Players.Update(player);
+    {
+        using var db = _dbFactory.CreateDbContext();
+        db.Players.Update(player);
+        db.SaveChanges();
+    }
 
-    public void SaveChanges()
-        => _db.SaveChanges();
+    // No-op; kept for interface compatibility.
+    public void SaveChanges() { }
 }

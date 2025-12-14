@@ -1,13 +1,12 @@
 using System.Threading.Tasks;
-using GameApp.Service.Models;
 using Microsoft.AspNetCore.SignalR;
-using GameApp.Service.Utils;
 using GameApp.Service.Dtos;
+using GameApp.Service.Utils;
 using GameApp.Application.Hubs;
 
-namespace GameApp.Integration.SignalR;
+namespace GameApp.Application.SignalR;
 
-public class SignalRDrawingRelay : IDrawingRelay
+public sealed class SignalRDrawingRelay : IDrawingRelay
 {
     private readonly IHubContext<LobbyHub> _hubContext;
 
@@ -17,15 +16,18 @@ public class SignalRDrawingRelay : IDrawingRelay
     }
 
     public Task RelayStrokeStarted(StrokeStartedDto dto, string targetConnectionId) =>
-        // TEMP: broadcast to group for testing
-        _hubContext.Clients.Group(dto.LobbyId).SendAsync("StrokeStarted", dto.StrokeId, dto.Color, dto.Width, dto.Tool);
+        _hubContext.Clients.Client(targetConnectionId)
+            .SendAsync("StrokeStarted", dto.StrokeId, dto.Color, dto.Width, dto.Tool, dto.LobbyId);
 
     public Task RelayStrokePoints(StrokePointsDto dto, string targetConnectionId) =>
-        _hubContext.Clients.Group(dto.LobbyId).SendAsync("StrokePoints", dto.StrokeId, dto.Points);
+        _hubContext.Clients.Client(targetConnectionId)
+            .SendAsync("StrokePoints", dto.StrokeId, dto.Points, dto.LobbyId);
 
     public Task RelayStrokeEnded(StrokeEndedDto dto, string targetConnectionId) =>
-        _hubContext.Clients.Group(dto.LobbyId).SendAsync("StrokeEnded", dto.StrokeId);
+        _hubContext.Clients.Client(targetConnectionId)
+            .SendAsync("StrokeEnded", dto.StrokeId, dto.LobbyId);
 
     public Task RelayCanvasCleared(CanvasClearedDto dto, string targetConnectionId) =>
-        _hubContext.Clients.Group(dto.LobbyId).SendAsync("CanvasCleared");
+        _hubContext.Clients.Client(targetConnectionId)
+            .SendAsync("CanvasCleared", dto.LobbyId);
 }
