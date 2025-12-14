@@ -7,3 +7,4 @@ coverage-report/
 coverage/
 /GameApp/GameApp.Application/DB_Data/gameapp.db-shm
 /GameApp/GameApp.Application/DB_Data/gameapp.db-wal
+/GameApp/GameApp.Application/DB_Data/gameapp.db
