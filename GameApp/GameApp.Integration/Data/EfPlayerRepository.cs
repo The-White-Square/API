@@ -26,6 +26,13 @@ public class EfPlayerRepository : IPlayerRepository
         return db.Players.Where(p => p.LobbyId == lobbyId && names.Contains(p.DisplayName)).ToList();
     }
 
+    // load all players of a lobby
+    public List<Player> GetByLobby(Guid lobbyId)
+    {
+        using var db = _dbFactory.CreateDbContext();
+        return db.Players.Where(p => p.LobbyId == lobbyId).ToList();
+    }
+
     public void Add(Player player)
     {
         using var db = _dbFactory.CreateDbContext();

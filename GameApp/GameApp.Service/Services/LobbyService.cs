@@ -14,8 +14,6 @@ public class LobbyService : ILobbyService
     private readonly IGalleryService _gallery;
     private readonly ILobbyCodeGenerator _codeGenerator;
     private readonly ILogger<LobbyService> _logger;
-
-    // New: repositories abstract persistence (implemented in Integration)
     private readonly ILobbyRepository _lobbyRepo;
     private readonly IPlayerRepository _playerRepo;
 
@@ -34,25 +32,77 @@ public class LobbyService : ILobbyService
         _logger.LogInformation("LobbyService initialized.");
     }
 
-    public Lobby GetLobby(string lobbyId) => _lobbies[lobbyId];
+    public Lobby GetLobby(string lobbyId) => EnsureLobbyExists(lobbyId);
 
     public bool LobbyExists(string lobbyId)
     {
-        // Fast path: check in-memory
+        // check in-memory
         if (_lobbies.ContainsKey(lobbyId))
             return true;
 
-        // Attempt to load from persistence to support scenarios where the app restarted
+        // attempt to load from persistence
         var loaded = _lobbyRepo.GetByCode(lobbyId);
         if (loaded is not null)
         {
+            // hydrate players from persistence
+            var persistedPlayers = _playerRepo.GetByLobby(loaded.Id);
+            foreach (var p in persistedPlayers)
+            {
+                // ensure ConnectionId is null (it will be set on join) but other properties are kept
+                if (!_lobbies.TryGetValue(lobbyId, out var _))
+                {
+                    // will add lobby below
+                }
+            }
+
             _lobbies.TryAdd(lobbyId, loaded);
+
+            // Add players into in-memory lobby
+            var inMemLobby = _lobbies[lobbyId];
+            if (inMemLobby.Players.Count == 0 && persistedPlayers.Count > 0)
+            {
+                inMemLobby.Players.AddRange(persistedPlayers);
+                _logger.LogDebug("Hydrated {Count} players into lobby {LobbyId} from persistence.", persistedPlayers.Count, lobbyId);
+            }
+
             _logger.LogDebug("Lobby {LobbyId} loaded from persistence into memory.", lobbyId);
             return true;
         }
 
         return false;
     }
+    private Lobby EnsureLobbyExists(string lobbyId)
+    {
+        if (_lobbies.TryGetValue(lobbyId, out var existing))
+            return existing;
+
+        // attempt to load from persistence first
+        var loaded = _lobbyRepo.GetByCode(lobbyId);
+        if (loaded is not null)
+        {
+            _lobbies.TryAdd(lobbyId, loaded);
+
+            // hydrate players from persistence
+            var persistedPlayers = _playerRepo.GetByLobby(loaded.Id);
+            if (persistedPlayers.Count > 0)
+            {
+                var inMemLobby = _lobbies[lobbyId];
+                // avoid duplicates if any were already present
+                var existingNames = new HashSet<string>(inMemLobby.Players.Select(p => p.DisplayName), StringComparer.OrdinalIgnoreCase);
+                foreach (var p in persistedPlayers)
+                {
+                    if (!existingNames.Contains(p.DisplayName))
+                        inMemLobby.Players.Add(p);
+                }
+                _logger.LogDebug("Hydrated {Count} players into lobby {LobbyId}.", persistedPlayers.Count, lobbyId);
+            }
+            return loaded;
+        }
+
+        // create if missing
+        return CreateLobbyInternal(lobbyId);
+    }
+
     public IEnumerable<Lobby> GetAllLobbies() => _lobbies.Values;
 
     public void AddPlayer(Player player, string lobbyId)
@@ -70,6 +120,7 @@ public class LobbyService : ILobbyService
                 throw new LobbyFullException(lobbyId, 2);
             }
 
+            player.LobbyId = lobby.Id;
             lobby.Players.Add(player);
             _logger.LogInformation("Player {Player} added to lobby {LobbyId}. Player count now {Count}.",
                 player.DisplayName, lobbyId, lobby.Players.Count);
@@ -131,26 +182,11 @@ public class LobbyService : ILobbyService
         return _lobbies[lobbyCode];
     }
 
-    private Lobby EnsureLobbyExists(string lobbyId)
-    {
-        if (_lobbies.TryGetValue(lobbyId, out var existing))
-            return existing;
-
-        // Attempt to load from persistence first
-        var loaded = _lobbyRepo.GetByCode(lobbyId);
-        if (loaded is not null)
-        {
-            _lobbies.TryAdd(lobbyId, loaded);
-            return loaded;
-        }
-
-        // Create if missing; handles races safely
-        return CreateLobbyInternal(lobbyId);
-    }
-
     public void JoinLobby(string lobbyId)
     {
-        _logger.LogDebug("JoinLobby invoked for {LobbyId}. Exists: {Exists}", lobbyId, LobbyExists(lobbyId));
+        // Ensure lobby exists so subsequent operations have a consistent view
+        var lobby = EnsureLobbyExists(lobbyId);
+        _logger.LogDebug("JoinLobby invoked for {LobbyId}. Players: {Count}", lobbyId, lobby.Players.Count);
     }
 
     public void AddOrUpdatePlayerConnection(string lobbyId, string displayName, int iconId, string connectionId)
@@ -192,11 +228,7 @@ public class LobbyService : ILobbyService
 
     public ImageDto? GetOrAssignLobbyImage(string lobbyId)
     {
-        if (!_lobbies.TryGetValue(lobbyId, out var lobby))
-        {
-            _logger.LogWarning("GetOrAssignLobbyImage: Lobby {LobbyId} not found.", lobbyId);
-            return null;
-        }
+        var lobby = EnsureLobbyExists(lobbyId);
 
         if (!string.IsNullOrEmpty(lobby.SelectedImageId))
         {
@@ -238,7 +270,8 @@ public class LobbyService : ILobbyService
 
     public string? GetLobbySelectedImagePath(string lobbyId)
     {
-        if (!_lobbies.TryGetValue(lobbyId, out var lobby) || string.IsNullOrEmpty(lobby.SelectedImageId))
+        var lobby = EnsureLobbyExists(lobbyId);
+        if (string.IsNullOrEmpty(lobby.SelectedImageId))
             return null;
         return _gallery.GetImageFilePath(lobby.SelectedImageId);
     }
@@ -246,11 +279,8 @@ public class LobbyService : ILobbyService
     // assign roles for the lobby, pick or reuse a lobby image (returns null if not enough players / lobby missing).
     public RolesAssignment? AssignRoles(string lobbyId)
     {
-        if (!_lobbies.TryGetValue(lobbyId, out var lobby))
-        {
-            _logger.LogWarning("AssignRoles: Lobby {LobbyId} not found.", lobbyId);
-            return null;
-        }
+        var lobby = EnsureLobbyExists(lobbyId);
+
         if (lobby.Players.Count < 2)
         {
             _logger.LogWarning("AssignRoles: Not enough players in lobby {LobbyId}. Count: {Count}", lobbyId, lobby.Players.Count);
