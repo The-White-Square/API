@@ -142,5 +142,15 @@ namespace GameApp.Application.Hubs
                 throw new HubException("Lobby not found");
             await Clients.Group(lobbyId).SendAsync("GoToFinal");
         }
+
+        // New: announce a freshly saved drawing to the lobby so all clients can update immediately
+        public async Task AnnounceDrawing(string lobbyId, string drawingUrl)
+        {
+            if (!_lobbyService.LobbyExists(lobbyId))
+                throw new HubException("Lobby not found");
+
+            // drawingUrl is expected to be the relative path like "/drawings/{file}.png"
+            await Clients.Group(lobbyId).SendAsync("DrawingSaved", drawingUrl);
+        }
     }
 }

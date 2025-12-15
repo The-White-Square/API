@@ -71,6 +71,12 @@ var imagesRoot = Path.IsPathRooted(galleryOpts.ImagesRoot)
     : Path.Combine(app.Environment.ContentRootPath, galleryOpts.ImagesRoot);
 Directory.CreateDirectory(imagesRoot);
 
+// Ensure drawings folder exists (new)
+var drawingsRoot = Path.IsPathRooted(galleryOpts.DrawingsRoot)
+    ? galleryOpts.DrawingsRoot
+    : Path.Combine(app.Environment.ContentRootPath, galleryOpts.DrawingsRoot);
+Directory.CreateDirectory(drawingsRoot);
+
 // Create database schema if missing
 using (var scope = app.Services.CreateScope())
 {
@@ -87,6 +93,20 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Add lightweight middleware so static image/drawing responses include CORS headers
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.Value ?? string.Empty;
+    if (path.StartsWith("/images", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/drawings", StringComparison.OrdinalIgnoreCase))
+    {
+        // allow Vite dev server origin(s) to access static images/drawings
+        context.Response.Headers["Access-Control-Allow-Origin"] = "http://localhost:5173";
+        context.Response.Headers["Access-Control-Allow-Credentials"] = "true";
+    }
+    await next();
+});
 
 // Serve static files from wwwroot (images are placed under wwwroot/images)
 app.UseStaticFiles();
