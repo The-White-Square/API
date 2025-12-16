@@ -8,4 +8,4 @@ coverage/
 /GameApp/GameApp.Application/DB_Data/gameapp.db-shm
 /GameApp/GameApp.Application/DB_Data/gameapp.db-wal
 /GameApp/GameApp.Application/DB_Data/gameapp.db
-/GameApp/GameApp.Application/drawings/*.png
+/GameApp/GameApp.Application/wwwroot/drawings/*.png
