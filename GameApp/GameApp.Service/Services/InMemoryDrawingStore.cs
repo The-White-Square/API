@@ -19,9 +19,29 @@ public sealed class InMemoryDrawingStore : IDrawingStore
     private Timeline GetTimeline(string lobbyId) =>
         _timelines.GetOrAdd(lobbyId, _ => new Timeline());
 
+    private static void TrimToActive(Timeline t)
+    {
+        // If user has undone some actions, ActiveCount < Events.Count.
+        // Any new edit must clear the redo tail.
+        if (t.ActiveCount < 0) t.ActiveCount = 0;
+        if (t.ActiveCount > t.Events.Count) t.ActiveCount = t.Events.Count;
+        if (t.ActiveCount == t.Events.Count) return;
+
+        // Remove events beyond ActiveCount
+        var removeCount = t.Events.Count - t.ActiveCount;
+        if (removeCount > 0)
+        {
+            t.Events.RemoveRange(t.ActiveCount, removeCount);
+        }
+
+        // Keep only action boundaries that are <= ActiveCount (inclusive)
+        t.ActionIndices.RemoveAll(i => i > t.ActiveCount);
+    }
+
     public void AppendStrokeStarted(string lobbyId, string strokeId, string color, double width, string tool)
     {
         var t = GetTimeline(lobbyId);
+        TrimToActive(t);
         t.Events.Add(new StrokeStartedEvent(strokeId, color, width, tool));
         t.ActiveCount = t.Events.Count;
     }
@@ -29,6 +49,7 @@ public sealed class InMemoryDrawingStore : IDrawingStore
     public void AppendStrokePoints(string lobbyId, string strokeId, IReadOnlyList<PointDto> points)
     {
         var t = GetTimeline(lobbyId);
+        TrimToActive(t);
         t.Events.Add(new StrokePointsEvent(strokeId, points));
         t.ActiveCount = t.Events.Count;
     }
@@ -36,6 +57,7 @@ public sealed class InMemoryDrawingStore : IDrawingStore
     public void AppendStrokeEnded(string lobbyId, string strokeId)
     {
         var t = GetTimeline(lobbyId);
+        TrimToActive(t);
         t.Events.Add(new StrokeEndedEvent(strokeId));
         t.ActiveCount = t.Events.Count;
         t.ActionIndices.Add(t.ActiveCount); // action boundary is inclusive
@@ -44,6 +66,7 @@ public sealed class InMemoryDrawingStore : IDrawingStore
     public void AppendCanvasCleared(string lobbyId)
     {
         var t = GetTimeline(lobbyId);
+        TrimToActive(t);
         t.Events.Add(new CanvasClearedEvent());
         t.ActiveCount = t.Events.Count;
         t.ActionIndices.Add(t.ActiveCount);
