@@ -48,15 +48,8 @@ var dbPath = Path.Combine(dbFolder, "gameapp.db");
 // Override the connection string with the absolute path
 builder.Configuration["ConnectionStrings:Default"] = $"Data Source={dbPath}";
 
-// SignalR with camelCase
-builder.Services
-    .AddSignalR()
-    .AddJsonProtocol(opts =>
-    {
-        opts.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-    });
-
-
+// SignalR 
+builder.Services.AddSignalR();
 
 // EF Core with the resolved path
 builder.Services.AddDbContextFactory<AppDbContext>(options =>
