@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
-using GameApp.Service;
-
+using GameApp.Service.Services;
 namespace GameApp.Controllers
 {
     [ApiController]

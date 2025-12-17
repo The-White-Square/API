@@ -58,6 +58,7 @@ builder.Services.AddSingleton<IGalleryRepository, FileSystemGalleryRepository>()
 builder.Services.AddScoped<IGalleryService, GalleryService>();
 builder.Services.AddScoped<ILobbyService, LobbyService>();
 builder.Services.AddSingleton<ILobbyCodeGenerator, RandomLobbyCodeGenerator>();
+builder.Services.AddSingleton<GameApp.Service.Services.IDrawingStore, GameApp.Service.Services.InMemoryDrawingStore>();
 
 // SignalR drawing relay adapter (now in Application)
 builder.Services.AddSingleton<IDrawingRelay, SignalRDrawingRelay>();

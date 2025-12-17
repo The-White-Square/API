@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.SignalR;
-using GameApp.Service.Dtos;           // your drawing DTOs
-using GameApp.Service.Models;       // PlayerRole
-using GameApp.Service.Services;  // ILobbyService
-using GameApp.Service.Utils;     // IDrawingRelay
+using GameApp.Service.Dtos;
+using GameApp.Service.Models;
+using GameApp.Service.Services;
+using GameApp.Service.Utils;
 
 namespace GameApp.Application.Hubs
 {
@@ -10,11 +10,13 @@ namespace GameApp.Application.Hubs
     {
         private readonly ILobbyService _lobbyService;
         private readonly IDrawingRelay _drawingRelay;
+        private readonly IDrawingStore _drawingStore;
 
-        public LobbyHub(ILobbyService lobbyService, IDrawingRelay drawingRelay)
+        public LobbyHub(ILobbyService lobbyService, IDrawingRelay drawingRelay, IDrawingStore drawingStore)
         {
             _lobbyService = lobbyService;
             _drawingRelay = drawingRelay;
+            _drawingStore = drawingStore;
         }
 
         public async Task AddPlayerToLobby(string lobbyId, string playerName, int iconId)
@@ -88,8 +90,10 @@ namespace GameApp.Application.Hubs
         // drawer initiates a stroke
         public async Task BeginStroke(string lobbyId, string strokeId, string color, double width, string tool)
         {
+            _drawingStore.AppendStrokeStarted(lobbyId, strokeId, color, width, tool);
+
             var target = GetDescriberConnection(lobbyId, Context.ConnectionId);
-            if (target is null) return; // silently ignore if no describer yet
+            if (target is null) return;
 
             var dto = new StrokeStartedDto(lobbyId, strokeId, color, width, tool);
             await _drawingRelay.RelayStrokeStarted(dto, target);
@@ -99,6 +103,9 @@ namespace GameApp.Application.Hubs
         public async Task AddStrokePoints(string lobbyId, string strokeId, List<PointDto> points)
         {
             if (points is null || points.Count == 0) return;
+
+            _drawingStore.AppendStrokePoints(lobbyId, strokeId, points);
+
             var target = GetDescriberConnection(lobbyId, Context.ConnectionId);
             if (target is null) return;
 
@@ -108,6 +115,8 @@ namespace GameApp.Application.Hubs
 
         public async Task EndStroke(string lobbyId, string strokeId)
         {
+            _drawingStore.AppendStrokeEnded(lobbyId, strokeId);
+
             var target = GetDescriberConnection(lobbyId, Context.ConnectionId);
             if (target is null) return;
 
@@ -117,11 +126,39 @@ namespace GameApp.Application.Hubs
 
         public async Task ClearCanvas(string lobbyId)
         {
+            _drawingStore.AppendCanvasCleared(lobbyId);
+
             var target = GetDescriberConnection(lobbyId, Context.ConnectionId);
             if (target is null) return;
 
             var dto = new CanvasClearedDto(lobbyId);
             await _drawingRelay.RelayCanvasCleared(dto, target);
+        }
+
+        // bootstrap current timeline (for refresh/late join)
+        public Task<IReadOnlyList<DrawingEventBase>> GetDrawingEvents(string lobbyId)
+        {
+            var list = _drawingStore.GetActiveEvents(lobbyId);
+            return Task.FromResult(list);
+        }
+
+        // server-authoritative undo/redo; broadcast CanvasReset with current active events
+        public async Task<bool> UndoLast(string lobbyId)
+        {
+            var ok = _drawingStore.UndoLast(lobbyId);
+            if (!ok) return false;
+            var events = _drawingStore.GetActiveEvents(lobbyId);
+            await Clients.Group(lobbyId).SendAsync("CanvasReset", events);
+            return true;
+        }
+
+        public async Task<bool> RedoLast(string lobbyId)
+        {
+            var ok = _drawingStore.RedoLast(lobbyId);
+            if (!ok) return false;
+            var events = _drawingStore.GetActiveEvents(lobbyId);
+            await Clients.Group(lobbyId).SendAsync("CanvasReset", events);
+            return true;
         }
 
         // helper obtains describer connection
