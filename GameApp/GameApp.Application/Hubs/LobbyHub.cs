@@ -93,13 +93,14 @@ namespace GameApp.Application.Hubs
             _drawingStore.AppendStrokeStarted(lobbyId, strokeId, color, width, tool);
 
             var target = GetDescriberConnection(lobbyId, Context.ConnectionId);
-            if (target is null) return;
-
             var dto = new StrokeStartedDto(lobbyId, strokeId, color, width, tool);
-            await _drawingRelay.RelayStrokeStarted(dto, target);
+
+            if (target is not null)
+                await _drawingRelay.RelayStrokeStarted(dto, target);
+            else
+                await Clients.GroupExcept(lobbyId, new[] { Context.ConnectionId }).SendAsync("StrokeStarted", strokeId, color, width, tool);
         }
 
-        // drawer sends batched points
         public async Task AddStrokePoints(string lobbyId, string strokeId, List<PointDto> points)
         {
             if (points is null || points.Count == 0) return;
@@ -107,10 +108,12 @@ namespace GameApp.Application.Hubs
             _drawingStore.AppendStrokePoints(lobbyId, strokeId, points);
 
             var target = GetDescriberConnection(lobbyId, Context.ConnectionId);
-            if (target is null) return;
-
             var dto = new StrokePointsDto(lobbyId, strokeId, points);
-            await _drawingRelay.RelayStrokePoints(dto, target);
+
+            if (target is not null)
+                await _drawingRelay.RelayStrokePoints(dto, target);
+            else
+                await Clients.GroupExcept(lobbyId, new[] { Context.ConnectionId }).SendAsync("StrokePoints", strokeId, points);
         }
 
         public async Task EndStroke(string lobbyId, string strokeId)
@@ -118,10 +121,12 @@ namespace GameApp.Application.Hubs
             _drawingStore.AppendStrokeEnded(lobbyId, strokeId);
 
             var target = GetDescriberConnection(lobbyId, Context.ConnectionId);
-            if (target is null) return;
-
             var dto = new StrokeEndedDto(lobbyId, strokeId);
-            await _drawingRelay.RelayStrokeEnded(dto, target);
+
+            if (target is not null)
+                await _drawingRelay.RelayStrokeEnded(dto, target);
+            else
+                await Clients.GroupExcept(lobbyId, new[] { Context.ConnectionId }).SendAsync("StrokeEnded", strokeId);
         }
 
         public async Task ClearCanvas(string lobbyId)
@@ -129,26 +134,36 @@ namespace GameApp.Application.Hubs
             _drawingStore.AppendCanvasCleared(lobbyId);
 
             var target = GetDescriberConnection(lobbyId, Context.ConnectionId);
-            if (target is null) return;
-
             var dto = new CanvasClearedDto(lobbyId);
-            await _drawingRelay.RelayCanvasCleared(dto, target);
+
+            if (target is not null)
+                await _drawingRelay.RelayCanvasCleared(dto, target);
+            else
+                await Clients.GroupExcept(lobbyId, new[] { Context.ConnectionId }).SendAsync("CanvasCleared");
         }
 
-        // bootstrap current timeline (for refresh/late join)
-        public Task<IReadOnlyList<DrawingEventBase>> GetDrawingEvents(string lobbyId)
+        private static object Project(DrawingEventBase e) =>
+            e switch
+            {
+                StrokeStartedEvent s => new { type = "StrokeStarted", strokeId = s.StrokeId, color = s.Color, width = s.Width, tool = s.Tool },
+                StrokePointsEvent p => new { type = "StrokePoints", strokeId = p.StrokeId, points = p.Points.Select(pt => new { x = pt.X, y = pt.Y }).ToArray() },
+                StrokeEndedEvent se => new { type = "StrokeEnded", strokeId = se.StrokeId },
+                CanvasClearedEvent => new { type = "CanvasCleared" },
+                _ => new { type = "Unknown" }
+            };
+
+        public Task<object[]> GetDrawingEvents(string lobbyId)
         {
-            var list = _drawingStore.GetActiveEvents(lobbyId);
-            return Task.FromResult(list);
+            var wire = _drawingStore.GetActiveEvents(lobbyId).Select(Project).ToArray();
+            return Task.FromResult(wire);
         }
 
-        // server-authoritative undo/redo; broadcast CanvasReset with current active events
         public async Task<bool> UndoLast(string lobbyId)
         {
             var ok = _drawingStore.UndoLast(lobbyId);
             if (!ok) return false;
-            var events = _drawingStore.GetActiveEvents(lobbyId);
-            await Clients.Group(lobbyId).SendAsync("CanvasReset", events);
+            var wire = _drawingStore.GetActiveEvents(lobbyId).Select(Project).ToArray();
+            await Clients.Group(lobbyId).SendAsync("CanvasReset", wire);
             return true;
         }
 
@@ -156,22 +171,21 @@ namespace GameApp.Application.Hubs
         {
             var ok = _drawingStore.RedoLast(lobbyId);
             if (!ok) return false;
-            var events = _drawingStore.GetActiveEvents(lobbyId);
-            await Clients.Group(lobbyId).SendAsync("CanvasReset", events);
+            var wire = _drawingStore.GetActiveEvents(lobbyId).Select(Project).ToArray();
+            await Clients.Group(lobbyId).SendAsync("CanvasReset", wire);
             return true;
         }
 
-        // helper obtains describer connection
         private string? GetDescriberConnection(string lobbyId, string callerConnection)
         {
             if (!_lobbyService.LobbyExists(lobbyId)) return null;
             var lobby = _lobbyService.GetLobby(lobbyId);
             var describer = lobby.Players.FirstOrDefault(p => p.Role == PlayerRole.Explainer);
             if (describer is null) return null;
-            if (describer.ConnectionId == callerConnection) return null; // caller is describer; ignore
+            if (describer.ConnectionId == callerConnection) return null;
             return describer.ConnectionId;
         }
-        
+
         // Broadcast GoToFinal so all clients in the lobby navigate to final page
         public async Task GoToFinal(string lobbyId)
         {

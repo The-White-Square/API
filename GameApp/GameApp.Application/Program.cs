@@ -1,18 +1,18 @@
 ﻿using System;
 using System.IO;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.EntityFrameworkCore;
-
+using System.Text.Json;
 using GameApp.Application.Hubs;
-using GameApp.Service.Services; // IGalleryService, ILobbyService
-using GameApp.Service.Utils;    // IDrawingRelay, ILobbyCodeGenerator
-using GameApp.Integration.Data; // AppDbContext, EfLobbyRepository, EfPlayerRepository
 using GameApp.Application.SignalR; // SignalRDrawingRelay
+using GameApp.Integration.Data; // AppDbContext, EfLobbyRepository, EfPlayerRepository
 using GameApp.Integration.Gallery; // FileSystemGalleryRepository
 using GameApp.Service.Options; // GalleryOptions
+using GameApp.Service.Services; // IGalleryService, ILobbyService
+using GameApp.Service.Utils;    // IDrawingRelay, ILobbyCodeGenerator
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,7 +29,13 @@ builder.Services.AddCors(options =>
             .AllowCredentials());
 });
 
-builder.Services.AddControllers();
+// Controllers with camelCase
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(opts =>
+    {
+        opts.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -42,8 +48,15 @@ var dbPath = Path.Combine(dbFolder, "gameapp.db");
 // Override the connection string with the absolute path
 builder.Configuration["ConnectionStrings:Default"] = $"Data Source={dbPath}";
 
-// SignalR
-builder.Services.AddSignalR();
+// SignalR with camelCase
+builder.Services
+    .AddSignalR()
+    .AddJsonProtocol(opts =>
+    {
+        opts.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    });
+
+
 
 // EF Core with the resolved path
 builder.Services.AddDbContextFactory<AppDbContext>(options =>
