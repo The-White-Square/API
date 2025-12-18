@@ -13,12 +13,14 @@
     <PackageReference Include="coverlet.collector" Version="6.0.2" />
     <PackageReference Include="Moq" Version="4.20.69" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.9" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.8" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.8" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\GameApp.Application\GameApp.Application.csproj" />
+    <ProjectReference Include="..\GameApp.Integration\GameApp.Integration.csproj" />
+    <ProjectReference Include="..\GameApp.Service\GameApp.Service.csproj" />
   </ItemGroup>
 
   <ItemGroup>

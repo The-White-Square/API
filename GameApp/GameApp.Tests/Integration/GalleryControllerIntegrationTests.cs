@@ -6,9 +6,9 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
-using GameApp.Application.Controllers;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using GameApp.Application.Models;
 using Xunit;
 
 namespace GameApp.Tests.Integration;
@@ -57,9 +57,9 @@ public class GalleryControllerIntegrationTests : IClassFixture<GalleryWebApplica
         // 1. creating empty gallery
         var listResp1 = await _client.GetAsync("/gallery");
         Assert.Equal(HttpStatusCode.OK, listResp1.StatusCode);
-        var list1 = await listResp1.Content.ReadFromJsonAsync<List<ImageDto>>();
+        var list1 = await listResp1.Content.ReadFromJsonAsync<List<ImageResponse>>();
         Assert.NotNull(list1);
-        Assert.Empty(list1);
+        Assert.Empty(list1!);
 
         // 2. random when empty returns error (0 images in gallery)
         var randomEmpty = await _client.GetAsync("/gallery/random");
@@ -74,25 +74,25 @@ public class GalleryControllerIntegrationTests : IClassFixture<GalleryWebApplica
 
         var uploadResp = await _client.PostAsync("/gallery", content);
         Assert.Equal(HttpStatusCode.Created, uploadResp.StatusCode);
-        var uploaded = await uploadResp.Content.ReadFromJsonAsync<ImageDto>();
+        var uploaded = await uploadResp.Content.ReadFromJsonAsync<ImageResponse>();
         Assert.NotNull(uploaded);
         Assert.EndsWith(".jpg", uploaded!.Id);
 
         // file saved physically
-        var savedFilePath = Path.Combine(_factory.ImagesRoot, uploaded.Id);
+        var savedFilePath = Path.Combine(_factory.ImagesRoot, uploaded.Id!);
         Assert.True(File.Exists(savedFilePath));
 
         // 4. list now returns one (finds the 1 image in gallery)
         var listResp2 = await _client.GetAsync("/gallery");
         Assert.Equal(HttpStatusCode.OK, listResp2.StatusCode);
-        var list2 = await listResp2.Content.ReadFromJsonAsync<List<ImageDto>>();
+        var list2 = await listResp2.Content.ReadFromJsonAsync<List<ImageResponse>>();
         Assert.NotNull(list2);
         Assert.Single(list2!);
 
         // 5. random now succeeds (finds the 1 image in gallery)
         var randomNow = await _client.GetAsync("/gallery/random");
         Assert.Equal(HttpStatusCode.OK, randomNow.StatusCode);
-        var randomDto = await randomNow.Content.ReadFromJsonAsync<ImageDto>();
+        var randomDto = await randomNow.Content.ReadFromJsonAsync<ImageResponse>();
         Assert.NotNull(randomDto);
     }
 }

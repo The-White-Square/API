@@ -1,11 +1,11 @@
 using GameApp.Application.Controllers;
-using GameApp.Application.LobbySystem;
-using GameApp.Application.Service;
-using GameApp.Application.Data;
-using GameApp.Application.Utils;
+using GameApp.Service.Services;
+using GameApp.Service.Dtos;
+using GameApp.Integration.Data;
+using GameApp.Service.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using GameApp.Application.Service.Exceptions;
+using GameApp.Service.Exceptions;
 using Xunit;
 using Microsoft.Extensions.Logging.Abstractions;
 using GameApp.Application.Models;
