@@ -10,16 +10,19 @@ using Xunit;
 using Microsoft.Extensions.Logging.Abstractions;
 using GameApp.Application.Models;
 using Microsoft.AspNetCore.Mvc.Testing;
+using GameApp.Service.Models;
+using Moq;
 
 namespace GameApp.Tests.Service;
 
-public class LobbyServiceTests : IDisposable
+public class LobbyServiceTests
 {
     private readonly DbContextOptions<AppDbContext> _dbOptions;
     private readonly Mock<IGalleryService> _mockGallery;
     private readonly Mock<ILobbyCodeGenerator> _mockCodeGenerator;
+    private readonly Mock<ILobbyRepository> _mockLobbyRepo;
+    private readonly Mock<IPlayerRepository> _mockPlayerRepo;
     private readonly Mock<ILogger<LobbyService>> _mockLogger;
-    private readonly IDbContextFactory<AppDbContext> _dbFactory;
 
     public LobbyServiceTests()
     {
@@ -27,14 +30,14 @@ public class LobbyServiceTests : IDisposable
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
 
-        var factory = new TestDbContextFactory(_dbOptions);
-        _dbFactory = factory;
-
         _mockGallery = new Mock<IGalleryService>();
         _mockCodeGenerator = new Mock<ILobbyCodeGenerator>();
+        _mockLobbyRepo = new Mock<ILobbyRepository>();
+        _mockPlayerRepo = new Mock<IPlayerRepository>();
         _mockLogger = new Mock<ILogger<LobbyService>>();
     }
 
+    [Fact]
     public void Dispose()
     {
         using var context = new AppDbContext(_dbOptions);
@@ -43,11 +46,23 @@ public class LobbyServiceTests : IDisposable
 
     private LobbyService CreateService()
     {
-        return new LobbyService(_mockGallery.Object, _dbFactory, _mockCodeGenerator.Object, _mockLogger.Object);
+        return new LobbyService(
+            _mockGallery.Object,
+            _mockLobbyRepo.Object,
+            _mockPlayerRepo.Object,
+            _mockCodeGenerator.Object,
+            NullLogger<LobbyService>.Instance);
+    }
+
+    private void SetupPersistedLobby(string code, Lobby? lobby = null)
+    {
+        var lb = lobby ?? new Lobby(code);
+        _mockLobbyRepo.Setup(r => r.GetByCode(code)).Returns(lb);
+        _mockLobbyRepo.Setup(r => r.GetById(lb.Id)).Returns(lb);
     }
 
     [Fact]
-    public void CreateLobby_ShouldCreateNewLobby()
+    public void CreateLobby_ShouldCreateNewLobby_AndPersist()
     {
         // Arrange
         var service = CreateService();
@@ -60,148 +75,148 @@ public class LobbyServiceTests : IDisposable
         Assert.NotNull(lobby);
         Assert.Equal("ABC123", lobby.LobbyCode);
         Assert.True(service.LobbyExists("ABC123"));
-
-        using var db = new AppDbContext(_dbOptions);
-        var dbLobby = db.Lobbies.FirstOrDefault(l => l.LobbyCode == "ABC123");
-        Assert.NotNull(dbLobby);
+        _mockLobbyRepo.Verify(r => r.Add(It.Is<Lobby>(l => l.LobbyCode == "ABC123")), Times.Once);
+        _mockLobbyRepo.Verify(r => r.SaveChanges(), Times.Once);
     }
 
     [Fact]
-    public void LobbyExists_ReturnsTrueForExistingLobby()
+    public void LobbyExists_ReturnsTrueForExistingLobby_InMemory()
     {
-        // Arrange
         var service = CreateService();
         _mockCodeGenerator.Setup(x => x.Generate()).Returns("TEST01");
         service.CreateLobby();
 
-        // Act & Assert
         Assert.True(service.LobbyExists("TEST01"));
+    }
+
+    [Fact]
+    public void LobbyExists_LoadsFromPersistence_WhenNotInMemory()
+    {
+        var service = CreateService();
+        var persisted = new Lobby("PERSIST");
+        SetupPersistedLobby("PERSIST", persisted);
+        _mockPlayerRepo.Setup(r => r.GetByLobby(persisted.Id)).Returns(new List<Player>());
+
+        Assert.True(service.LobbyExists("PERSIST"));
+        _mockLobbyRepo.Verify(r => r.GetByCode("PERSIST"), Times.Once);
     }
 
     [Fact]
     public void LobbyExists_ReturnsFalseForNonExistingLobby()
     {
-        // Arrange
         var service = CreateService();
-
-        // Act & Assert
         Assert.False(service.LobbyExists("NONEXIST"));
+        _mockLobbyRepo.Verify(r => r.GetByCode("NONEXIST"), Times.Once);
     }
 
     [Fact]
-    public void GetLobby_ReturnsCorrectLobby()
+    public void GetLobby_ReturnsCorrectLobby_FromMemoryOrPersistence()
     {
-        // Arrange
         var service = CreateService();
         _mockCodeGenerator.Setup(x => x.Generate()).Returns("GETTEST");
         var createdLobby = service.CreateLobby();
 
-        // Act
         var retrievedLobby = service.GetLobby("GETTEST");
 
-        // Assert
         Assert.NotNull(retrievedLobby);
         Assert.Equal("GETTEST", retrievedLobby.LobbyCode);
         Assert.Same(createdLobby, retrievedLobby);
     }
 
     [Fact]
-    public void AddPlayer_ShouldAddNewPlayer()
+    public void AddPlayer_ShouldAddNewPlayer_AndPersist()
     {
-        // Arrange
         var service = CreateService();
         _mockCodeGenerator.Setup(x => x.Generate()).Returns("LOBBY1");
-        service.CreateLobby();
+        var lobby = service.CreateLobby();
 
         var player = new Player("John", 1);
 
-        // Act
         service.AddPlayer(player, "LOBBY1");
 
-        // Assert
-        var lobby = service.GetLobby("LOBBY1");
-        Assert.Single(lobby.Players);
-        Assert.Equal("John", lobby.Players.First().DisplayName);
+        var memLobby = service.GetLobby("LOBBY1");
+        Assert.Single(memLobby.Players);
+        Assert.Equal("John", memLobby.Players.First().DisplayName);
 
-        using var db = new AppDbContext(_dbOptions);
-        var dbPlayer = db.Players.FirstOrDefault(p => p.DisplayName == "John" && p.LobbyId == lobby.Id);
-        Assert.NotNull(dbPlayer);
+        _mockPlayerRepo.Verify(r => r.GetByLobbyAndName(lobby.Id, "John"), Times.Once);
+        _mockPlayerRepo.Verify(r => r.Add(It.Is<Player>(p => p.DisplayName == "John" && p.LobbyId == lobby.Id)), Times.Once);
+        _mockPlayerRepo.Verify(r => r.SaveChanges(), Times.Once);
     }
 
     [Fact]
-    public void AddOrUpdatePlayerConnection_ShouldAddNewPlayer()
+    public void AddOrUpdatePlayerConnection_ShouldAddNewPlayer_AndPersist()
     {
-        // Arrange
         var service = CreateService();
         _mockCodeGenerator.Setup(x => x.Generate()).Returns("LOBBY3");
-        service.CreateLobby();
+        var lobby = service.CreateLobby();
 
-        // Act
+        _mockPlayerRepo.Setup(r => r.GetByLobbyAndName(lobby.Id, "Alice")).Returns((Player?)null);
+
         service.AddOrUpdatePlayerConnection("LOBBY3", "Alice", 3, "conn123");
 
-        // Assert
-        var lobby = service.GetLobby("LOBBY3");
-        Assert.Single(lobby.Players);
-        Assert.Equal("Alice", lobby.Players.First().DisplayName);
-        Assert.Equal("conn123", lobby.Players.First().ConnectionId);
+        var memLobby = service.GetLobby("LOBBY3");
+        Assert.Single(memLobby.Players);
+        var alice = memLobby.Players.First();
+        Assert.Equal("Alice", alice.DisplayName);
+        Assert.Equal("conn123", alice.ConnectionId);
+        Assert.Equal(3, alice.iconId);
 
-        using var db = new AppDbContext(_dbOptions);
-        var dbPlayer = db.Players.FirstOrDefault(p => p.DisplayName == "Alice");
-        Assert.NotNull(dbPlayer);
-        Assert.Equal("conn123", dbPlayer.ConnectionId);
+        _mockPlayerRepo.Verify(r => r.Add(It.Is<Player>(p => p.DisplayName == "Alice" && p.ConnectionId == "conn123" && p.iconId == 3)), Times.Once);
+        _mockPlayerRepo.Verify(r => r.SaveChanges(), Times.Once);
     }
 
     [Fact]
-    public void AddOrUpdatePlayerConnection_ShouldUpdateExistingPlayer()
+    public void AddOrUpdatePlayerConnection_ShouldUpdateExistingPlayer_AndPersist()
     {
-        // Arrange
         var service = CreateService();
         _mockCodeGenerator.Setup(x => x.Generate()).Returns("LOBBY4");
-        service.CreateLobby();
+        var lobby = service.CreateLobby();
 
+        // Existing in memory first
         service.AddOrUpdatePlayerConnection("LOBBY4", "Bob", 1, "connOld");
 
-        // Act
+        // Simulate existing in DB
+        var dbPlayer = new Player("Bob", 1) { LobbyId = lobby.Id, ConnectionId = "connOld" };
+        _mockPlayerRepo.Setup(r => r.GetByLobbyAndName(lobby.Id, "Bob")).Returns(dbPlayer);
+
         service.AddOrUpdatePlayerConnection("LOBBY4", "Bob", 2, "connNew");
 
-        // Assert
-        var lobby = service.GetLobby("LOBBY4");
-        var bobPlayer = lobby.Players.FirstOrDefault(p => p.DisplayName.Equals("Bob", StringComparison.OrdinalIgnoreCase));
+        var memLobby = service.GetLobby("LOBBY4");
+        var bobPlayer = memLobby.Players.FirstOrDefault(p => p.DisplayName.Equals("Bob", StringComparison.OrdinalIgnoreCase));
         Assert.NotNull(bobPlayer);
-        Assert.Equal("connNew", bobPlayer.ConnectionId);
+        Assert.Equal("connNew", bobPlayer!.ConnectionId);
         Assert.Equal(2, bobPlayer.iconId);
 
-        using var db = new AppDbContext(_dbOptions);
-        var dbPlayer = db.Players.FirstOrDefault(p => p.DisplayName == "Bob");
-        Assert.NotNull(dbPlayer);
-        Assert.Equal("connNew", dbPlayer.ConnectionId);
-        Assert.Equal(2, dbPlayer.iconId);
+        _mockPlayerRepo.Verify(r => r.Update(It.Is<Player>(p => p.DisplayName == "Bob" && p.ConnectionId == "connNew" && p.iconId == 2)), Times.Once);
+        _mockPlayerRepo.Verify(r => r.SaveChanges(), Times.AtLeastOnce);
     }
 
     [Fact]
-    public void GetOrAssignLobbyImage_ReturnsNullForNonExistentLobby()
+    public void GetOrAssignLobbyImage_ReturnsNullForNonExistentLobby_LoadFails()
     {
-        // Arrange
         var service = CreateService();
+        // Persistence returns null; EnsureLobbyExists will create a new lobby internally if accessed via GetLobby,
+        // but here we directly call GetOrAssignLobbyImage which also ensures it exists by creating one in memory.
+        // To simulate non-existent with no image availability, just set gallery to return null.
+        _mockCodeGenerator.Setup(x => x.Generate()).Returns("X");
+        service.CreateLobby(); // ensure service works
 
-        // Act
-        var result = service.GetOrAssignLobbyImage("NONEXIST");
+        _mockGallery.Setup(x => x.GetRandomImage()).Returns((ImageDto?)null);
 
-        // Assert
+        var result = service.GetOrAssignLobbyImage("UNKNOWN");
+        // It will create an in-memory lobby and then fail to assign image
         Assert.Null(result);
     }
 
     [Fact]
     public void GetOrAssignLobbyImage_ReusesExistingImage()
     {
-        // Arrange
         var service = CreateService();
         _mockCodeGenerator.Setup(x => x.Generate()).Returns("LOBBY5");
         var lobby = service.CreateLobby();
         lobby.SelectedImageId = "img123";
         lobby.SelectedImageUrl = "/images/img123";
 
-        // Create a temporary file to simulate the image
         var tempFile = Path.GetTempFileName();
         File.WriteAllText(tempFile, "fake image content");
 
@@ -209,66 +224,65 @@ public class LobbyServiceTests : IDisposable
 
         try
         {
-            // Act
             var result = service.GetOrAssignLobbyImage("LOBBY5");
 
-            // Assert
             Assert.NotNull(result);
-            Assert.Equal("img123", result.Id);
+            Assert.Equal("img123", result!.Id);
             _mockGallery.Verify(x => x.GetRandomImage(), Times.Never);
         }
         finally
         {
-            // Cleanup
             if (File.Exists(tempFile))
                 File.Delete(tempFile);
         }
     }
 
     [Fact]
-    public void GetOrAssignLobbyImage_AssignsNewImageWhenNoneExists()
+    public void GetOrAssignLobbyImage_AssignsNewImageWhenNoneExists_AndPersistsOnLobby()
     {
-        // Arrange
         var service = CreateService();
         _mockCodeGenerator.Setup(x => x.Generate()).Returns("LOBBY6");
-        service.CreateLobby();
+        var lobby = service.CreateLobby();
 
         var imageDto = new ImageDto("newImg", "/images/newImg", 1024);
         _mockGallery.Setup(x => x.GetRandomImage()).Returns(imageDto);
 
-        // Act
+        SetupPersistedLobby("LOBBY6", lobby);
+
+        // Clear prior invocations from Arrange (CreateLobby triggers Add + SaveChanges)
+        _mockLobbyRepo.Invocations.Clear();
+
         var result = service.GetOrAssignLobbyImage("LOBBY6");
 
-        // Assert
         Assert.NotNull(result);
-        Assert.Equal("newImg", result.Id);
+        Assert.Equal("newImg", result!.Id);
 
-        var lobby = service.GetLobby("LOBBY6");
-        Assert.Equal("newImg", lobby.SelectedImageId);
-        Assert.Equal("/images/newImg", lobby.SelectedImageUrl);
+        var memLobby = service.GetLobby("LOBBY6");
+        Assert.Equal("newImg", memLobby.SelectedImageId);
+        Assert.Equal("/images/newImg", memLobby.SelectedImageUrl);
+
+        _mockLobbyRepo.Verify(r => r.GetById(lobby.Id), Times.Once);
+        _mockLobbyRepo.Verify(r => r.Update(It.Is<Lobby>(l => l.Id == lobby.Id && l.SelectedImageId == "newImg")), Times.Once);
+        _mockLobbyRepo.Verify(r => r.SaveChanges(), Times.Once);
     }
 
     [Fact]
     public void GetOrAssignLobbyImage_ReturnsNullWhenNoImagesAvailable()
     {
-        // Arrange
         var service = CreateService();
         _mockCodeGenerator.Setup(x => x.Generate()).Returns("LOBBY7");
         service.CreateLobby();
 
         _mockGallery.Setup(x => x.GetRandomImage()).Returns((ImageDto?)null);
 
-        // Act
         var result = service.GetOrAssignLobbyImage("LOBBY7");
 
-        // Assert
         Assert.Null(result);
     }
 
     [Fact]
     public void GetLobbySelectedImagePath_ReturnsPathForExistingImage()
     {
-        // Arrange
         var service = CreateService();
         _mockCodeGenerator.Setup(x => x.Generate()).Returns("LOBBY8");
         var lobby = service.CreateLobby();
@@ -276,43 +290,26 @@ public class LobbyServiceTests : IDisposable
 
         _mockGallery.Setup(x => x.GetImageFilePath("img456")).Returns("/path/to/img456.jpg");
 
-        // Act
         var path = service.GetLobbySelectedImagePath("LOBBY8");
 
-        // Assert
         Assert.Equal("/path/to/img456.jpg", path);
     }
 
     [Fact]
-    public void GetLobbySelectedImagePath_ReturnsNullForNonExistentLobby()
+    public void GetLobbySelectedImagePath_ReturnsNullWhenNoImageAssigned()
     {
-        // Arrange
         var service = CreateService();
+        _mockCodeGenerator.Setup(x => x.Generate()).Returns("L");
+        service.CreateLobby();
 
-        // Act
-        var path = service.GetLobbySelectedImagePath("NONEXIST");
+        var path = service.GetLobbySelectedImagePath("L");
 
-        // Assert
         Assert.Null(path);
-    }
-
-    [Fact]
-    public void AssignRoles_ReturnsNullForNonExistentLobby()
-    {
-        // Arrange
-        var service = CreateService();
-
-        // Act
-        var result = service.AssignRoles("NONEXIST");
-
-        // Assert
-        Assert.Null(result);
     }
 
     [Fact]
     public void AssignRoles_ReturnsNullWhenNotEnoughPlayers()
     {
-        // Arrange
         var service = CreateService();
         _mockCodeGenerator.Setup(x => x.Generate()).Returns("LOBBY9");
         service.CreateLobby();
@@ -320,20 +317,17 @@ public class LobbyServiceTests : IDisposable
         var player = new Player("Solo", 1);
         service.AddPlayer(player, "LOBBY9");
 
-        // Act
         var result = service.AssignRoles("LOBBY9");
 
-        // Assert
         Assert.Null(result);
     }
 
     [Fact]
-    public void AssignRoles_AssignsRolesCorrectly()
+    public void AssignRoles_AssignsRolesCorrectly_AndPersistsRoleUpdates()
     {
-        // Arrange
         var service = CreateService();
         _mockCodeGenerator.Setup(x => x.Generate()).Returns("LOBBY10");
-        service.CreateLobby();
+        var lobby = service.CreateLobby();
 
         var player1 = new Player("Player1", 1) { ConnectionId = "conn1" };
         var player2 = new Player("Player2", 2) { ConnectionId = "conn2" };
@@ -344,28 +338,32 @@ public class LobbyServiceTests : IDisposable
         var imageDto = new ImageDto("roleImg", "/images/roleImg", 2048);
         _mockGallery.Setup(x => x.GetRandomImage()).Returns(imageDto);
 
-        // Act
+        // Simulate fetching players from repo for role persistence
+        _mockPlayerRepo.Setup(r => r.GetByLobbyIds(lobby.Id, It.IsAny<IEnumerable<string>>()))
+            .Returns(new List<Player>
+            {
+                new Player("Player1", 1){ LobbyId = lobby.Id },
+                new Player("Player2", 2){ LobbyId = lobby.Id }
+            });
+
         var result = service.AssignRoles("LOBBY10");
 
-        // Assert
         Assert.NotNull(result);
-        Assert.NotNull(result.Describer);
+        Assert.NotNull(result!.Describer);
         Assert.NotNull(result.Drawer);
         Assert.NotEqual(result.Describer.DisplayName, result.Drawer.DisplayName);
         Assert.Equal(PlayerRole.Explainer, result.Describer.Role);
         Assert.Equal(PlayerRole.Artist, result.Drawer.Role);
         Assert.NotNull(result.Image);
 
-        using var db = new AppDbContext(_dbOptions);
-        var dbPlayers = db.Players.Where(p => p.LobbyId == service.GetLobby("LOBBY10").Id).ToList();
-        Assert.Contains(dbPlayers, p => p.Role == PlayerRole.Explainer);
-        Assert.Contains(dbPlayers, p => p.Role == PlayerRole.Artist);
+        _mockPlayerRepo.Verify(r => r.Update(It.Is<Player>(p => p.DisplayName == "Player1" && p.Role != PlayerRole.None)), Times.AtLeastOnce);
+        _mockPlayerRepo.Verify(r => r.Update(It.Is<Player>(p => p.DisplayName == "Player2" && p.Role != PlayerRole.None)), Times.AtLeastOnce);
+        _mockPlayerRepo.Verify(r => r.SaveChanges(), Times.AtLeastOnce);
     }
 
     [Fact]
     public void GetAllLobbies_ReturnsAllCreatedLobbies()
     {
-        // Arrange
         var service = CreateService();
         _mockCodeGenerator.SetupSequence(x => x.Generate())
             .Returns("LOBBY_A")
@@ -376,10 +374,8 @@ public class LobbyServiceTests : IDisposable
         service.CreateLobby();
         service.CreateLobby();
 
-        // Act
         var lobbies = service.GetAllLobbies().ToList();
 
-        // Assert
         Assert.Equal(3, lobbies.Count);
         Assert.Contains(lobbies, l => l.LobbyCode == "LOBBY_A");
         Assert.Contains(lobbies, l => l.LobbyCode == "LOBBY_B");
@@ -387,18 +383,14 @@ public class LobbyServiceTests : IDisposable
     }
 
     [Fact]
-    public void JoinLobby_LogsCorrectly()
+    public void JoinLobby_NoErrors_WhenLobbyExistsOrLoaded()
     {
-        // Arrange
         var service = CreateService();
         _mockCodeGenerator.Setup(x => x.Generate()).Returns("JOINTEST");
         service.CreateLobby();
 
-        // Act
         service.JoinLobby("JOINTEST");
 
-        // Assert
-        // Verify that JoinLobby executes without error
         Assert.True(service.LobbyExists("JOINTEST"));
     }
 
@@ -416,39 +408,18 @@ public class LobbyServiceTests : IDisposable
     }
 
     [Fact]
-    public void GetOrAssignLobbyImage_PersistsSelectedImageToDatabase()
-    {
-        var service = CreateService();
-        _mockCodeGenerator.Setup(x => x.Generate()).Returns("PERSIST1");
-        service.CreateLobby();
-
-        var imageDto = new ImageDto("persistImg", "/images/persistImg", 100);
-        _mockGallery.Setup(x => x.GetRandomImage()).Returns(imageDto);
-
-        var result = service.GetOrAssignLobbyImage("PERSIST1");
-
-        Assert.NotNull(result);
-        Assert.Equal("persistImg", result.Id);
-
-        using var db = new AppDbContext(_dbOptions);
-        var lobbyRow = db.Lobbies.FirstOrDefault(l => l.LobbyCode == "PERSIST1");
-        Assert.NotNull(lobbyRow);
-        Assert.Equal("persistImg", lobbyRow.SelectedImageId);
-        Assert.Equal("/images/persistImg", lobbyRow.SelectedImageUrl);
-    }
-
-    // implicit lobby creation when adding a player connection to a non-existent lobby
-    [Fact]
     public void AddOrUpdatePlayerConnection_CreatesLobbyIfMissing()
     {
-        // Arrange
         var service = CreateService();
-        Assert.False(service.LobbyExists("ImplicitLobby"));
 
-        // Act
+        Assert.False(service.LobbyExists("ImplicitLobby"));
+        // Setup persistence to return null so EnsureLobbyExists creates new one
+        _mockLobbyRepo.Setup(r => r.GetByCode("ImplicitLobby")).Returns((Lobby?)null);
+        _mockLobbyRepo.Setup(r => r.Add(It.Is<Lobby>(l => l.LobbyCode == "ImplicitLobby")));
+        _mockLobbyRepo.Setup(r => r.SaveChanges());
+
         service.AddOrUpdatePlayerConnection("ImplicitLobby", "DemoName", 5, "Connection432");
 
-        // Assert
         Assert.True(service.LobbyExists("ImplicitLobby"));
         var lobby = service.GetLobby("ImplicitLobby");
         Assert.Single(lobby.Players);
@@ -457,49 +428,44 @@ public class LobbyServiceTests : IDisposable
         Assert.Equal("Connection432", player.ConnectionId);
         Assert.Equal(5, player.iconId);
 
-        using var db = new AppDbContext(_dbOptions);
-        var dbPlayer = db.Players.FirstOrDefault(p => p.DisplayName == "DemoName" && p.LobbyId == lobby.Id);
-        Assert.NotNull(dbPlayer);
+        _mockPlayerRepo.Verify(r => r.Add(It.Is<Player>(p => p.DisplayName == "DemoName" && p.iconId == 5 && p.ConnectionId == "Connection432")), Times.Once);
+        _mockPlayerRepo.Verify(r => r.SaveChanges(), Times.Once);
     }
 
-    // adding same display name twice does not duplicate player, just updates properties
     [Fact]
-    public void AddPlayer_DoesNotDuplicateExistingPlayer_UpdatesExisting()
+    public void AddPlayer_DoesNotDuplicateExistingPlayer_UpdatesExisting_AndPersists()
     {
-        // Arrange
         var service = CreateService();
         _mockCodeGenerator.Setup(x => x.Generate()).Returns("Lobby123");
-        service.CreateLobby();
+        var lobby = service.CreateLobby();
 
         var initial = new Player("RepeatingName", 1)
         {
             Role = PlayerRole.None,
             ConnectionId = "ConnectionA"
         };
+        _mockPlayerRepo.Setup(r => r.GetByLobbyAndName(lobby.Id, "RepeatingName")).Returns((Player?)null);
         service.AddPlayer(initial, "Lobby123");
 
-        // Act
         var updated = new Player("RepeatingName", 9)
         {
             Role = PlayerRole.Artist,
             ConnectionId = "ConnectionB"
         };
+        var existingDb = new Player("RepeatingName", 1) { LobbyId = lobby.Id, Role = PlayerRole.None, ConnectionId = "ConnectionA" };
+        _mockPlayerRepo.Setup(r => r.GetByLobbyAndName(lobby.Id, "RepeatingName")).Returns(existingDb);
+
         service.AddPlayer(updated, "Lobby123");
 
-        // Assert
-        var lobby = service.GetLobby("Lobby123");
-        Assert.Single(lobby.Players);
-        var player = lobby.Players.First();
+        var memLobby = service.GetLobby("Lobby123");
+        Assert.Single(memLobby.Players);
+        var player = memLobby.Players.First();
         Assert.Equal("RepeatingName", player.DisplayName);
         Assert.Equal(9, player.iconId);
         Assert.Equal(PlayerRole.Artist, player.Role);
         Assert.Equal("ConnectionB", player.ConnectionId);
 
-        using var db = new AppDbContext(_dbOptions);
-        var dbPlayer = db.Players.FirstOrDefault(p => p.DisplayName == "RepeatingName" && p.LobbyId == lobby.Id);
-        Assert.NotNull(dbPlayer);
-        Assert.Equal(9, dbPlayer!.iconId);
-        Assert.Equal(PlayerRole.Artist, dbPlayer.Role);
-        Assert.Equal("ConnectionB", dbPlayer.ConnectionId);
+        _mockPlayerRepo.Verify(r => r.Update(It.Is<Player>(p => p.DisplayName == "RepeatingName" && p.iconId == 9 && p.Role == PlayerRole.Artist && p.ConnectionId == "ConnectionB")), Times.Once);
+        _mockPlayerRepo.Verify(r => r.SaveChanges(), Times.AtLeastOnce);
     }
 }

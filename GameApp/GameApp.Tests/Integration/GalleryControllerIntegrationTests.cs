@@ -8,6 +8,7 @@ using System.Net.Http.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using GameApp.Application.Models;
 using Xunit;
 
@@ -15,28 +16,33 @@ namespace GameApp.Tests.Integration;
 
 public class GalleryWebApplicationFactory : WebApplicationFactory<Program>, IDisposable
 {
-    // create a new temp directory for the test
-    public readonly string Root = Path.Combine(Path.GetTempPath(), "gallery_temp" + Guid.NewGuid());
+    public readonly string Root = Path.Combine(Path.GetTempPath(), "gallery_temp_" + Guid.NewGuid());
     public string WebRoot => Path.Combine(Root, "wwwroot");
     public string ImagesRoot => Path.Combine(WebRoot, "images");
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        Directory.CreateDirectory(ImagesRoot); // ensure images folder exists
-        builder.UseEnvironment("Temp");
+        Directory.CreateDirectory(ImagesRoot);
+
+        builder.UseEnvironment("Development"); // or a custom name
         builder.UseWebRoot(WebRoot);
         builder.UseContentRoot(Root);
+
+        // Force the application to use our temp images root instead of appsettings.json
+        builder.ConfigureAppConfiguration((_, cfg) =>
+        {
+            var overrides = new Dictionary<string, string?>
+            {
+                ["Gallery:ImagesRoot"] = ImagesRoot
+            };
+            cfg.AddInMemoryCollection(overrides!);
+        });
     }
 
     public new void Dispose()
     {
         base.Dispose();
-        try
-        {
-            if (Directory.Exists(Root))
-                Directory.Delete(Root);
-        }
-        catch { }
+        try { if (Directory.Exists(Root)) Directory.Delete(Root, recursive: true); } catch { }
     }
 }
 
@@ -54,6 +60,19 @@ public class GalleryControllerIntegrationTests : IClassFixture<GalleryWebApplica
     [Fact]
     public async Task List_Empty_Then_Upload_Then_List_NotEmpty()
     {
+        // Manual existence check + cleanup
+        if (!Directory.Exists(_factory.ImagesRoot))
+            Directory.CreateDirectory(_factory.ImagesRoot);
+
+        var preExisting = Directory.EnumerateFiles(_factory.ImagesRoot).ToList();
+        // Optional: write to test output if needed
+        Assert.True(preExisting.Count == 0, $"Images directory not empty at start: {string.Join(", ", preExisting)}");
+
+        foreach (var path in preExisting)
+        {
+            try { File.Delete(path); } catch { /* ignore */ }
+        }
+
         // 1. creating empty gallery
         var listResp1 = await _client.GetAsync("/gallery");
         Assert.Equal(HttpStatusCode.OK, listResp1.StatusCode);
@@ -80,9 +99,9 @@ public class GalleryControllerIntegrationTests : IClassFixture<GalleryWebApplica
 
         // file saved physically
         var savedFilePath = Path.Combine(_factory.ImagesRoot, uploaded.Id!);
-        Assert.True(File.Exists(savedFilePath));
+        Assert.True(File.Exists(savedFilePath), $"Expected saved file at {savedFilePath}");
 
-        // 4. list now returns one (finds the 1 image in gallery)
+        // 4. list now returns one
         var listResp2 = await _client.GetAsync("/gallery");
         Assert.Equal(HttpStatusCode.OK, listResp2.StatusCode);
         var list2 = await listResp2.Content.ReadFromJsonAsync<List<ImageResponse>>();

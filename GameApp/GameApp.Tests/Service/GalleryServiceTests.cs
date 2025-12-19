@@ -1,76 +1,51 @@
 using System.Text;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
+using GameApp.Service.Dtos;
+using GameApp.Service.Services;
 using Microsoft.Extensions.Logging.Abstractions;
-using GameApp.Application.Service;
+using Moq;
 
 namespace GameApp.Tests.Service;
 
-public class GalleryServiceTests : IDisposable
+public class GalleryServiceTests
 {
-    private readonly string _tempRoot;
+    private readonly Mock<IGalleryRepository> _repoMock = new();
     private readonly GalleryService _service;
 
     public GalleryServiceTests()
     {
-        _tempRoot = Path.Combine(Path.GetTempPath(), "gallery_test_" + Guid.NewGuid());
-        Directory.CreateDirectory(_tempRoot);
-
-        var envMock = new Mock<IWebHostEnvironment>();
-        envMock.Setup(e => e.WebRootPath).Returns(_tempRoot);
-
-        _service = new GalleryService(envMock.Object, NullLogger<GalleryService>.Instance);
+        _service = new GalleryService(_repoMock.Object, NullLogger<GalleryService>.Instance);
     }
-
-    public void Dispose()
-    {
-        // Cleanup test image folder
-        if (Directory.Exists(_tempRoot))
-            Directory.Delete(_tempRoot, true);
-    }
-
-    private string CreateImage(string name, int size = 10)
-    {
-        var path = Path.Combine(_tempRoot, "images", name);
-        File.WriteAllBytes(path, Encoding.UTF8.GetBytes(new string('x', size)));
-        return path;
-    }
-
-    // Helper to mock IFormFile
-    private IFormFile CreateMockFormFile(string fileName, byte[] data)
-    {
-        var stream = new MemoryStream(data);
-        var file = new FormFile(stream, 0, data.Length, "file", fileName)
-        {
-            Headers = new HeaderDictionary(),
-            ContentType = "image/jpeg"
-        };
-        return file;
-    }
-
-    // TESTS
 
     [Fact]
-    public void ListImages_Returns_Only_Allowed_Extensions()
+    public void ListImages_Returns_Ordered_By_Id()
     {
         // Arrange
-        CreateImage("a.jpg");
-        CreateImage("b.png");
-        CreateImage("c.gif");
-        File.WriteAllText(Path.Combine(_tempRoot, "images", "invalid.txt"), "bad file");
+        var images = new[]
+        {
+            new ImageDto("b.png", null, 0),
+            new ImageDto("a.jpg", null, 0),
+            new ImageDto("c.gif", null, 0),
+        };
+        _repoMock.Setup(r => r.ListImages()).Returns(images);
 
         // Act
         var result = _service.ListImages().ToList();
 
         // Assert
         Assert.Equal(3, result.Count);
-        Assert.Contains(result, x => x.Id.EndsWith("a.jpg"));
-        Assert.DoesNotContain(result, x => x.Id.EndsWith("invalid.txt"));
+        Assert.Collection(
+            result,
+            x => Assert.Equal("a.jpg", x.Id),
+            x => Assert.Equal("b.png", x.Id),
+            x => Assert.Equal("c.gif", x.Id));
     }
 
     [Fact]
-    public void GetRandomImage_Returns_Null_When_No_Images()
+    public void GetRandomImage_Returns_Null_When_Repository_Returns_Null()
     {
+        // Arrange
+        _repoMock.Setup(r => r.GetRandomImage()).Returns((ImageDto?)null);
+
         // Act
         var result = _service.GetRandomImage();
 
@@ -79,82 +54,64 @@ public class GalleryServiceTests : IDisposable
     }
 
     [Fact]
-    public void GetRandomImage_Returns_One_Of_Existing_Files()
+    public void GetRandomImage_Returns_Image_From_Repository()
     {
         // Arrange
-        CreateImage("x1.jpg");
-        CreateImage("x2.jpg");
+        var expected = new ImageDto("x1.jpg", null, 0);
+        _repoMock.Setup(r => r.GetRandomImage()).Returns(expected);
 
         // Act
         var image = _service.GetRandomImage();
 
         // Assert
         Assert.NotNull(image);
-        Assert.True(image!.Id == "x1.jpg" || image.Id == "x2.jpg");
+        Assert.Equal("x1.jpg", image!.Id);
     }
 
     [Fact]
-    public async Task SaveImageAsync_Saves_File_And_Returns_Dto()
+    public async Task SaveImageAsync_Passes_Stream_Name_Length_To_Repository_And_Returns_Dto()
     {
         // Arrange
         var data = Encoding.UTF8.GetBytes("imagecontent");
-        var file = CreateMockFormFile("test.jpg", data);
+        using var stream = new MemoryStream(data);
+        var fileName = "test.jpg";
+        var expected = new ImageDto("saved-id.jpg", null, 0);
+
+        _repoMock
+            .Setup(r => r.SaveImageAsync(It.IsAny<Stream>(), fileName, data.Length, It.IsAny<CancellationToken>()))
+            .Callback<Stream, string, long, CancellationToken>((s, n, l, ct) =>
+            {
+                // Verify the exact stream content passed down
+                using var ms = new MemoryStream();
+                s.CopyTo(ms);
+                Assert.Equal(data, ms.ToArray());
+                Assert.Equal(fileName, n);
+                Assert.Equal(data.Length, l);
+            })
+            .ReturnsAsync(expected);
 
         // Act
-        var result = await _service.SaveImageAsync(file);
+        var result = await _service.SaveImageAsync(stream, fileName, data.Length);
 
         // Assert
         Assert.NotNull(result);
-        Assert.EndsWith(".jpg", result.Id);
-        Assert.True(File.Exists(Path.Combine(_tempRoot, "images", result.Id)));
+        Assert.Equal(expected.Id, result.Id);
+        _repoMock.Verify(r => r.SaveImageAsync(It.IsAny<Stream>(), fileName, data.Length, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task SaveImageAsync_Rejects_Invalid_Extension()
+    public void GetImageFilePath_Delegates_To_Repository()
     {
         // Arrange
-        var file = CreateMockFormFile("bad.exe", Encoding.UTF8.GetBytes("data"));
-
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _service.SaveImageAsync(file));
-    }
-
-    [Fact]
-    public void GetImageFilePath_Returns_Path_When_File_Exists()
-    {
-        // Arrange
-        CreateImage("hello.png");
+        var imageId = "hello.png";
+        var expectedPath = "/var/wwwroot/images/hello.png";
+        _repoMock.Setup(r => r.GetImageFilePath(imageId)).Returns(expectedPath);
 
         // Act
-        var result = _service.GetImageFilePath("hello.png");
+        var result = _service.GetImageFilePath(imageId);
 
         // Assert
-        Assert.NotNull(result);
-        Assert.True(File.Exists(result));
+        Assert.Equal(expectedPath, result);
+        _repoMock.Verify(r => r.GetImageFilePath(imageId), Times.Once);
     }
-
-    [Fact]
-    public void GetImageFilePath_Returns_Null_When_Not_Found()
-    {
-        // Arrange & Act
-        var result = _service.GetImageFilePath("missing.jpg");
-
-        // Assert
-        Assert.Null(result);
-    }
-
-    [Fact]
-    public async Task SaveImageAsync_Throws_On_Null_File()
-    {
-        await Assert.ThrowsAsync<ArgumentException>(() => _service.SaveImageAsync(null!));
-    }
-
-    [Fact]
-    public async Task SaveImageAsync_Throws_On_Empty_File()
-    {
-        var emptyFile = CreateMockFormFile("empty.jpg", Array.Empty<byte>());
-        await Assert.ThrowsAsync<ArgumentException>(() => _service.SaveImageAsync(emptyFile));
-    }
-
 }

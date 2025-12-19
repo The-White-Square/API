@@ -1,9 +1,10 @@
 using GameApp.Application.Controllers;
 using GameApp.Application.Hubs;
-using GameApp.Service.Models;
+using GameApp.Application.Models;
 using GameApp.Application.Requests;
+using GameApp.Service.Dtos;
+using GameApp.Service.Models;
 using GameApp.Service.Services;
-using GameApp.Dtos;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 
@@ -71,10 +72,9 @@ public class LobbyControllerTests
 
         // Assert
         var ok = Assert.IsType<OkObjectResult>(result.Result);
-        var dto = Assert.IsType<ImageDto>(ok.Value);
-        Assert.Equal("img.png", dto.Url);
-        Assert.Equal("1", dto.Id);
-        Assert.Equal(12345, dto.Bytes);
+        var response = Assert.IsType<ImageResponse>(ok.Value);
+        Assert.Equal("img.png", response.Url);
+        Assert.Equal("1", response.Id);
     }
 
     [Fact]
