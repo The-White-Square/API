@@ -9,3 +9,4 @@ coverage/
 /GameApp/GameApp.Application/DB_Data/gameapp.db-wal
 /GameApp/GameApp.Application/DB_Data/gameapp.db
 /GameApp/GameApp.Application/wwwroot/drawings/*.png
+/coveragereport

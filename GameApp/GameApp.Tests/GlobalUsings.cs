@@ -7,4 +7,4 @@ global using Microsoft.AspNetCore.Http;
 // Check test coverage:
 // dotnet reload
 // dotnet test --collect:"XPlat Code Coverage"
-// reportgenerator -reports:GameApp.Tests/TestResults/**/coverage.cobertura.xml - targetdir:coverage - report - reporttypes:Html
+// reportgenerator -reports:"GameApp/GameApp.Tests/TestResults/**/coverage.cobertura.xml" -targetdir:"coveragereport" -reporttypes:Html
