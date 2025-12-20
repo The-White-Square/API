@@ -8,6 +8,9 @@ using GameApp.Service.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 
+namespace GameApp.Tests.Application;
+
+
 public class LobbyControllerTests
 {
     private readonly Mock<ILobbyService> _lobbyServiceMock = new();
