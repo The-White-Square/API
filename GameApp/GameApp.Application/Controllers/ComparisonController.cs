@@ -74,29 +74,16 @@ namespace GameApp.Application.Controllers
             if (string.IsNullOrEmpty(ext)) return false;
             switch (ext.ToLowerInvariant())
             {
-                case ".png": case ".jpg": case ".jpeg": case ".webp":
-                case ".bmp": case ".gif": case ".tif": case ".tiff":
+                case ".png":
+                case ".jpg":
+                case ".jpeg":
+                case ".webp":
+                case ".bmp":
+                case ".gif":
+                case ".tif":
+                case ".tiff":
                     return true;
                 default: return false;
-            }
-        }
-
-        // helper: save forwarded bytes for debugging and return hex prefix
-        private async Task<(string filePath, string hexPrefix)> SaveDebugForwardAsync(string prefix, byte[] bytes, CancellationToken ct)
-        {
-            try
-            {
-                var debugDir = Path.Combine(_env.ContentRootPath ?? ".", "debug", "forwarded");
-                Directory.CreateDirectory(debugDir);
-                var fname = Path.Combine(debugDir, $"{prefix}_{DateTime.UtcNow:yyyyMMddHHmmssfff}.bin");
-                await System.IO.File.WriteAllBytesAsync(fname, bytes, ct);
-                var hex = BitConverter.ToString(bytes.Take(Math.Min(16, bytes.Length)).ToArray()).Replace("-", " ");
-                return (fname, hex);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to save debug forwarded file {Prefix}", prefix);
-                return ("<failed>", "<no-hex>");
             }
         }
 
@@ -123,7 +110,6 @@ namespace GameApp.Application.Controllers
                                 var ext = Path.GetExtension(filePath);
                                 if (IsImageExtension(ext))
                                 {
-                                    _logger.LogInformation("Gallery file {Path} accepted by extension {Ext}.", filePath, ext);
                                     return (bytes, $"Resolved from gallery id '{imageId}' -> '{filePath}' (accepted by extension {ext})");
                                 }
                                 return (null, $"Gallery id '{imageId}' -> '{filePath}' but bytes do not look like an image (size={bytes.Length})");
@@ -148,7 +134,6 @@ namespace GameApp.Application.Controllers
                                 var ext = System.IO.Path.GetExtension(candidate);
                                 if (IsImageExtension(ext))
                                 {
-                                    _logger.LogInformation("Server-relative file {Path} accepted by extension {Ext}.", candidate, ext);
                                     return (bytes, $"Resolved server-relative path '{imagePath}' -> '{candidate}' (accepted by extension {ext})");
                                 }
                                 return (null, $"Server-relative path '{imagePath}' mapped to '{candidate}' but bytes do not look like an image (size={bytes.Length})");
@@ -198,7 +183,6 @@ namespace GameApp.Application.Controllers
                                 var ext = System.IO.Path.GetExtension(imagePath);
                                 if (IsImageExtension(ext))
                                 {
-                                    _logger.LogInformation("Filesystem path {Path} accepted by extension {Ext}.", imagePath, ext);
                                     return (bytes, $"Resolved filesystem path '{imagePath}' (accepted by extension {ext})");
                                 }
                                 return (null, $"Filesystem path '{imagePath}' exists but bytes do not look like an image (size={bytes.Length})");
@@ -243,21 +227,14 @@ namespace GameApp.Application.Controllers
                     });
                 }
 
-                // --- DEBUG: save forwarded bytes to disk and log hex prefix ---
-                var (savedA, hexA) = await SaveDebugForwardAsync("forward_fileA", bytesA, cancellationToken);
-                var (savedB, hexB) = await SaveDebugForwardAsync("forward_fileB", bytesB, cancellationToken);
-                _logger.LogInformation("Forwarding to comparison service: fileA saved={SavedA} size={SizeA} hex={HexA}; fileB saved={SavedB} size={SizeB} hex={HexB}",
-                    savedA, bytesA.Length, hexA, savedB, bytesB.Length, hexB);
-                // --- end debug ---
-
                 using var content = new System.Net.Http.MultipartFormDataContent();
                 var byteContentA = new System.Net.Http.ByteArrayContent(bytesA);
                 byteContentA.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
-                content.Add(byteContentA, "fileA", Path.GetFileName(savedA) ?? "fileA.bin");
+                content.Add(byteContentA, "fileA", "fileA.bin");
 
                 var byteContentB = new System.Net.Http.ByteArrayContent(bytesB);
                 byteContentB.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
-                content.Add(byteContentB, "fileB", Path.GetFileName(savedB) ?? "fileB.bin");
+                content.Add(byteContentB, "fileB", "fileB.bin");
 
                 using var response = await httpClient.PostAsync(_comparisonServiceUrl, content, cancellationToken);
                 var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -293,9 +270,8 @@ namespace GameApp.Application.Controllers
             }
         }
 
-        // New: accept multipart/form-data with two files and forward to comparison service.
         [HttpPost("upload")]
-        [RequestSizeLimit(20_000_000)] // 20 MB
+        [RequestSizeLimit(20_000_000)]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> CompareMultipart([FromForm] IFormFile? fileA, [FromForm] IFormFile? fileB, CancellationToken cancellationToken)
         {
@@ -347,7 +323,7 @@ namespace GameApp.Application.Controllers
 
                     return Ok(new
                     {
-                        score = Math.Round(score, 1)/ 100,
+                        score = Math.Round(score, 1) / 100,
                         message = "Congratulations!"
                     });
                 }
@@ -359,7 +335,7 @@ namespace GameApp.Application.Controllers
             }
             catch (OperationCanceledException)
             {
-                return StatusCode(499); // client closed request
+                return StatusCode(499);
             }
             catch (Exception ex)
             {
