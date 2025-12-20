@@ -269,18 +269,18 @@ namespace GameApp.Application.Controllers
                 }
 
                 var parsed = JsonSerializer.Deserialize<JsonElement>(responseBody);
-                var result = new ComparisonResult { Raw = parsed };
-                if (parsed.ValueKind == JsonValueKind.Object)
+
+                double score = 0;
+                if (parsed.TryGetProperty("score", out var scoreProp) && scoreProp.TryGetDouble(out var scoreVal))
                 {
-                    if (parsed.TryGetProperty("score", out var scoreProp) && scoreProp.TryGetDouble(out var score))
-                        result.Score = score;
-                    if (parsed.TryGetProperty("message", out var msgProp) && msgProp.ValueKind == JsonValueKind.String)
-                        result.Message = msgProp.GetString();
-                    if (parsed.TryGetProperty("diffImageUrl", out var urlProp) && urlProp.ValueKind == JsonValueKind.String)
-                        result.DiffImageUrl = urlProp.GetString();
+                    score = scoreVal;
                 }
 
-                return Ok(result);
+                return Ok(new
+                {
+                    score = Math.Round(score, 1) / 100,
+                    message = "Congratulations"
+                });
             }
             catch (OperationCanceledException)
             {
@@ -338,19 +338,18 @@ namespace GameApp.Application.Controllers
                 try
                 {
                     var parsed = JsonSerializer.Deserialize<JsonElement>(responseBody);
-                    var result = new ComparisonResult { Raw = parsed };
 
-                    if (parsed.ValueKind == JsonValueKind.Object)
+                    double score = 0;
+                    if (parsed.TryGetProperty("score", out var scoreProp) && scoreProp.TryGetDouble(out var scoreVal))
                     {
-                        if (parsed.TryGetProperty("score", out var scoreProp) && scoreProp.TryGetDouble(out var score))
-                            result.Score = score;
-                        if (parsed.TryGetProperty("message", out var msgProp) && msgProp.ValueKind == JsonValueKind.String)
-                            result.Message = msgProp.GetString();
-                        if (parsed.TryGetProperty("diffImageUrl", out var urlProp) && urlProp.ValueKind == JsonValueKind.String)
-                            result.DiffImageUrl = urlProp.GetString();
+                        score = scoreVal;
                     }
 
-                    return Ok(result);
+                    return Ok(new
+                    {
+                        score = Math.Round(score, 1)/ 100,
+                        message = "Congratulations!"
+                    });
                 }
                 catch (JsonException)
                 {
