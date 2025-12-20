@@ -1,17 +1,11 @@
-using GameApp.Application.Controllers;
 using GameApp.Service.Services;
 using GameApp.Service.Dtos;
 using GameApp.Integration.Data;
 using GameApp.Service.Utils;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using GameApp.Service.Exceptions;
-using Xunit;
 using Microsoft.Extensions.Logging.Abstractions;
-using GameApp.Application.Models;
-using Microsoft.AspNetCore.Mvc.Testing;
 using GameApp.Service.Models;
-using Moq;
 
 namespace GameApp.Tests.Service;
 
@@ -64,14 +58,11 @@ public class LobbyServiceTests
     [Fact]
     public void CreateLobby_ShouldCreateNewLobby_AndPersist()
     {
-        // Arrange
         var service = CreateService();
         _mockCodeGenerator.Setup(x => x.Generate()).Returns("ABC123");
 
-        // Act
         var lobby = service.CreateLobby();
 
-        // Assert
         Assert.NotNull(lobby);
         Assert.Equal("ABC123", lobby.LobbyCode);
         Assert.True(service.LobbyExists("ABC123"));
@@ -172,10 +163,8 @@ public class LobbyServiceTests
         _mockCodeGenerator.Setup(x => x.Generate()).Returns("LOBBY4");
         var lobby = service.CreateLobby();
 
-        // Existing in memory first
         service.AddOrUpdatePlayerConnection("LOBBY4", "Bob", 1, "connOld");
 
-        // Simulate existing in DB
         var dbPlayer = new Player("Bob", 1) { LobbyId = lobby.Id, ConnectionId = "connOld" };
         _mockPlayerRepo.Setup(r => r.GetByLobbyAndName(lobby.Id, "Bob")).Returns(dbPlayer);
 
@@ -195,16 +184,12 @@ public class LobbyServiceTests
     public void GetOrAssignLobbyImage_ReturnsNullForNonExistentLobby_LoadFails()
     {
         var service = CreateService();
-        // Persistence returns null; EnsureLobbyExists will create a new lobby internally if accessed via GetLobby,
-        // but here we directly call GetOrAssignLobbyImage which also ensures it exists by creating one in memory.
-        // To simulate non-existent with no image availability, just set gallery to return null.
         _mockCodeGenerator.Setup(x => x.Generate()).Returns("X");
-        service.CreateLobby(); // ensure service works
+        service.CreateLobby();
 
         _mockGallery.Setup(x => x.GetRandomImage()).Returns((ImageDto?)null);
 
         var result = service.GetOrAssignLobbyImage("UNKNOWN");
-        // It will create an in-memory lobby and then fail to assign image
         Assert.Null(result);
     }
 
@@ -249,7 +234,6 @@ public class LobbyServiceTests
 
         SetupPersistedLobby("LOBBY6", lobby);
 
-        // Clear prior invocations from Arrange (CreateLobby triggers Add + SaveChanges)
         _mockLobbyRepo.Invocations.Clear();
 
         var result = service.GetOrAssignLobbyImage("LOBBY6");
@@ -338,7 +322,6 @@ public class LobbyServiceTests
         var imageDto = new ImageDto("roleImg", "/images/roleImg", 2048);
         _mockGallery.Setup(x => x.GetRandomImage()).Returns(imageDto);
 
-        // Simulate fetching players from repo for role persistence
         _mockPlayerRepo.Setup(r => r.GetByLobbyIds(lobby.Id, It.IsAny<IEnumerable<string>>()))
             .Returns(new List<Player>
             {
@@ -413,7 +396,6 @@ public class LobbyServiceTests
         var service = CreateService();
 
         Assert.False(service.LobbyExists("ImplicitLobby"));
-        // Setup persistence to return null so EnsureLobbyExists creates new one
         _mockLobbyRepo.Setup(r => r.GetByCode("ImplicitLobby")).Returns((Lobby?)null);
         _mockLobbyRepo.Setup(r => r.Add(It.Is<Lobby>(l => l.LobbyCode == "ImplicitLobby")));
         _mockLobbyRepo.Setup(r => r.SaveChanges());

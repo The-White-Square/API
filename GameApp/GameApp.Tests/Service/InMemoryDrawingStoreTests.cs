@@ -10,29 +10,23 @@ public class InMemoryDrawingStoreTests
     [Fact]
     public void GetActiveEvents_EmptyLobby_ReturnsEmptyList()
     {
-        // Arrange
         var store = CreateStore();
         var lobbyId = "lobby1";
 
-        // Act
         var events = store.GetActiveEvents(lobbyId);
 
-        // Assert
         Assert.Empty(events);
     }
 
     [Fact]
     public void AppendStrokeStarted_AddsEventAndIncrementsActiveCount()
     {
-        // Arrange
         var store = CreateStore();
         var lobbyId = "lobby1";
 
-        // Act
         store.AppendStrokeStarted(lobbyId, "stroke1", "#FF0000", 2.5, "pen");
         var events = store.GetActiveEvents(lobbyId);
 
-        // Assert
         Assert.Single(events);
         var strokeEvent = Assert.IsType<StrokeStartedEvent>(events[0]);
         Assert.Equal("stroke1", strokeEvent.StrokeId);
@@ -44,17 +38,14 @@ public class InMemoryDrawingStoreTests
     [Fact]
     public void UndoLast_WithOneAction_SetsActiveCountToZero()
     {
-        // Arrange
         var store = CreateStore();
         var lobbyId = "lobby1";
         store.AppendStrokeStarted(lobbyId, "stroke1", "#FF0000", 2.0, "pen");
         store.AppendStrokeEnded(lobbyId, "stroke1");
 
-        // Act
         var result = store.UndoLast(lobbyId);
         var events = store.GetActiveEvents(lobbyId);
 
-        // Assert
         Assert.True(result);
         Assert.Empty(events);
     }
@@ -62,32 +53,26 @@ public class InMemoryDrawingStoreTests
     [Fact]
     public void UndoLast_EmptyTimeline_ReturnsFalse()
     {
-        // Arrange
         var store = CreateStore();
         var lobbyId = "lobby1";
 
-        // Act
         var result = store.UndoLast(lobbyId);
 
-        // Assert
         Assert.False(result);
     }
 
     [Fact]
     public void RedoLast_AfterUndo_RestoresEvents()
     {
-        // Arrange
         var store = CreateStore();
         var lobbyId = "lobby1";
         store.AppendStrokeStarted(lobbyId, "stroke1", "#0000FF", 3.0, "marker");
         store.AppendStrokeEnded(lobbyId, "stroke1");
         store.UndoLast(lobbyId);
 
-        // Act
         var result = store.RedoLast(lobbyId);
         var events = store.GetActiveEvents(lobbyId);
 
-        // Assert
         Assert.True(result);
         Assert.Equal(2, events.Count);
     }
@@ -95,48 +80,38 @@ public class InMemoryDrawingStoreTests
     [Fact]
     public void RedoLast_WithoutUndo_ReturnsFalse()
     {
-        // Arrange
         var store = CreateStore();
         var lobbyId = "lobby1";
         store.AppendStrokeStarted(lobbyId, "stroke1", "#FF0000", 2.0, "pen");
         store.AppendStrokeEnded(lobbyId, "stroke1");
 
-        // Act
         var result = store.RedoLast(lobbyId);
 
-        // Assert
         Assert.False(result);
     }
 
     [Fact]
     public void AppendAfterUndo_ClearsRedoTail()
     {
-        // Arrange
         var store = CreateStore();
         var lobbyId = "lobby1";
 
-        // Добавляем первый stroke
         store.AppendStrokeStarted(lobbyId, "stroke1", "#FF0000", 2.0, "pen");
         store.AppendStrokeEnded(lobbyId, "stroke1");
 
-        // Добавляем второй stroke
         store.AppendStrokeStarted(lobbyId, "stroke2", "#00FF00", 2.0, "pen");
         store.AppendStrokeEnded(lobbyId, "stroke2");
 
-        // Undo the second stroke
         store.UndoLast(lobbyId);
 
-        // Add a new stroke
         store.AppendStrokeStarted(lobbyId, "stroke3", "#0000FF", 2.0, "pen");
         store.AppendStrokeEnded(lobbyId, "stroke3");
 
-        // Try to redo
         var canRedo = store.RedoLast(lobbyId);
         var events = store.GetActiveEvents(lobbyId);
 
-        // Assert
-        Assert.False(canRedo); // redo невозможен, т.к. хвост очищен
-        Assert.Equal(4, events.Count); // stroke1 (2 события) + stroke3 (2 события)
+        Assert.False(canRedo);
+        Assert.Equal(4, events.Count);
     }
 
     [Fact]
@@ -184,7 +159,7 @@ public class InMemoryDrawingStoreTests
         store.UndoLast(lobbyId);
         var events = store.GetActiveEvents(lobbyId);
 
-        Assert.Equal(2, events.Count); // только stroke1
+        Assert.Equal(2, events.Count);
         var strokeEvent = Assert.IsType<StrokeStartedEvent>(events[0]);
         Assert.Equal("stroke1", strokeEvent.StrokeId);
     }
@@ -208,7 +183,7 @@ public class InMemoryDrawingStoreTests
         store.RedoLast(lobbyId);
         var events = store.GetActiveEvents(lobbyId);
 
-        Assert.Equal(4, events.Count); // оба stroke восстановлены
+        Assert.Equal(4, events.Count);
     }
 
     [Fact]
@@ -295,7 +270,7 @@ public class InMemoryDrawingStoreTests
         store.UndoLast(lobbyId);
         var events = store.GetActiveEvents(lobbyId);
 
-        Assert.Equal(4, events.Count); // оба stroke восстановлены
+        Assert.Equal(4, events.Count);
         Assert.IsType<StrokeStartedEvent>(events[0]);
         Assert.IsType<StrokeEndedEvent>(events[1]);
     }
@@ -322,31 +297,24 @@ public class InMemoryDrawingStoreTests
         var store = CreateStore();
         var lobbyId = "lobby1";
 
-        // 1. Draw a stroke
         store.AppendStrokeStarted(lobbyId, "stroke1", "#FF0000", 2.0, "pen");
         store.AppendStrokeEnded(lobbyId, "stroke1");
 
-        // 2. Draw one more
         store.AppendStrokeStarted(lobbyId, "stroke2", "#00FF00", 2.0, "pen");
         store.AppendStrokeEnded(lobbyId, "stroke2");
 
-        // 3. Undo the second one
         store.UndoLast(lobbyId);
 
-        // 4. Draw one more stroke
         store.AppendStrokeStarted(lobbyId, "stroke3", "#0000FF", 2.0, "pen");
         store.AppendStrokeEnded(lobbyId, "stroke3");
 
-        // 5. Clear canvas
         store.AppendCanvasCleared(lobbyId);
 
-        // 6. Undo clearing
         store.UndoLast(lobbyId);
 
         var events = store.GetActiveEvents(lobbyId);
 
-        // Assert
-        Assert.Equal(4, events.Count); // stroke1 + stroke3
+        Assert.Equal(4, events.Count);
         var stroke1 = Assert.IsType<StrokeStartedEvent>(events[0]);
         var stroke3 = Assert.IsType<StrokeStartedEvent>(events[2]);
         Assert.Equal("stroke1", stroke1.StrokeId);

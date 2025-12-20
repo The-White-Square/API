@@ -10,7 +10,6 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace GameApp.Tests.Application;
 
-
 public class LobbyControllerTests
 {
     private readonly Mock<ILobbyService> _lobbyServiceMock = new();
@@ -28,15 +27,12 @@ public class LobbyControllerTests
     [Fact]
     public async Task JoinLobby_JoinsLobby_WhenLobbyExists()
     {
-        // Arrange
         var controller = CreateController();
         var request = new LobbyJoinRequest { LobbyId = "LOBBY1", Username = "Bob", IconId = 2 };
         _lobbyServiceMock.Setup(s => s.LobbyExists("lobby1")).Returns(true);
 
-        // Act
         var result = await controller.JoinLobby(request);
 
-        // Assert
         var ok = Assert.IsType<OkObjectResult>(result);
         Assert.Equal("Bob", ok.Value);
         _lobbyServiceMock.Verify(s => s.AddPlayer(It.Is<Player>(p => p.DisplayName == "Bob"), "lobby1"), Times.Once);
@@ -47,15 +43,12 @@ public class LobbyControllerTests
     [Fact]
     public async Task JoinLobby_ReturnsBadRequest_WhenLobbyDoesNotExist()
     {
-        // Arrange
         var controller = CreateController();
         var request = new LobbyJoinRequest { LobbyId = "NOT_EXIST", Username = "Charlie", IconId = 3 };
         _lobbyServiceMock.Setup(s => s.LobbyExists("not_exist")).Returns(false);
 
-        // Act
         var result = await controller.JoinLobby(request);
 
-        // Assert
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
         Assert.Equal("Lobby not found", badRequest.Value);
     }
@@ -63,17 +56,14 @@ public class LobbyControllerTests
     [Fact]
     public void GetLobbyImage_ReturnsImage_WhenExists()
     {
-        // Arrange
         var controller = CreateController();
         string lobbyId = "L1";
         _lobbyServiceMock.Setup(s => s.LobbyExists(lobbyId)).Returns(true);
         _lobbyServiceMock.Setup(s => s.GetOrAssignLobbyImage(lobbyId))
             .Returns(new ImageDto("1", "img.png", 12345));
 
-        // Act
         var result = controller.GetLobbyImage(lobbyId);
 
-        // Assert
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<ImageResponse>(ok.Value);
         Assert.Equal("img.png", response.Url);
@@ -83,14 +73,11 @@ public class LobbyControllerTests
     [Fact]
     public void GetLobbyImage_ReturnsNotFound_WhenLobbyDoesNotExist()
     {
-        // Arrange
         var controller = CreateController();
         _lobbyServiceMock.Setup(s => s.LobbyExists("X")).Returns(false);
 
-        // Act
         var result = controller.GetLobbyImage("X");
 
-        // Assert
         var notFound = Assert.IsType<NotFoundObjectResult>(result.Result);
         Assert.Equal("Lobby not found", notFound.Value);
     }
@@ -98,15 +85,12 @@ public class LobbyControllerTests
     [Fact]
     public void GetLobbyImage_ReturnsNotFound_WhenNoImage()
     {
-        // Arrange
         var controller = CreateController();
         _lobbyServiceMock.Setup(s => s.LobbyExists("L1")).Returns(true);
         _lobbyServiceMock.Setup(s => s.GetOrAssignLobbyImage("L1")).Returns((ImageDto)null!);
 
-        // Act
         var result = controller.GetLobbyImage("L1");
 
-        // Assert
         var notFound = Assert.IsType<NotFoundObjectResult>(result.Result);
         Assert.Equal("No images available.", notFound.Value);
     }
@@ -114,7 +98,6 @@ public class LobbyControllerTests
     [Fact]
     public void GetLobbyPlayers_ReturnsPlayers_WhenLobbyExists()
     {
-        // Arrange
         var controller = CreateController();
         string lobbyId = "L1";
         var lobby = new Lobby();
@@ -123,10 +106,8 @@ public class LobbyControllerTests
         _lobbyServiceMock.Setup(s => s.LobbyExists(lobbyId)).Returns(true);
         _lobbyServiceMock.Setup(s => s.GetLobby(lobbyId)).Returns(lobby);
 
-        // Act
         var result = controller.GetLobbyPlayers(lobbyId);
 
-        // Assert
         Assert.NotNull(result);
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var players = Assert.IsAssignableFrom<IEnumerable<dynamic>>(ok.Value);
@@ -136,14 +117,11 @@ public class LobbyControllerTests
     [Fact]
     public void GetLobbyPlayers_ReturnsNotFound_WhenLobbyDoesNotExist()
     {
-        // Arrange
         var controller = CreateController();
         _lobbyServiceMock.Setup(s => s.LobbyExists("X")).Returns(false);
 
-        // Act
         var result = controller.GetLobbyPlayers("X");
 
-        // Assert
         var notFound = Assert.IsType<NotFoundObjectResult>(result.Result);
         Assert.Equal("Lobby not found", notFound.Value);
     }

@@ -1,15 +1,10 @@
-﻿using System;
-using System.Linq;
-using GameApp.Integration.Data;
+﻿using GameApp.Integration.Data;
 using GameApp.Service.Dtos;
 using GameApp.Service.Exceptions;
 using GameApp.Service.Models;
 using GameApp.Service.Services;
 using GameApp.Service.Utils;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Moq;
-using Xunit;
 
 namespace GameApp.Tests.Integration;
 
@@ -71,7 +66,6 @@ public class LobbyServiceIntegrationTests : IDisposable
     [Fact]
     public void AddPlayer_ToFullLobby_ThrowsLobbyFullException()
     {
-        // Arrange
         _mockCodeGenerator.Setup(x => x.Generate()).Returns("TEST123");
         var service = new LobbyService(_mockGallery.Object, _lobbyRepo, _playerRepo, _mockCodeGenerator.Object, _mockLogger.Object);
         var lobby = service.CreateLobby();
@@ -84,11 +78,9 @@ public class LobbyServiceIntegrationTests : IDisposable
         service.AddPlayer(player1, lobbyCode);
         service.AddPlayer(player2, lobbyCode);
 
-        // Act
         var exception = Assert.Throws<LobbyFullException>(() =>
             service.AddPlayer(player3, lobbyCode));
 
-        // Assert
         Assert.Equal(lobbyCode, exception.LobbyId);
 
         using var db = new AppDbContext(_dbOptions);
@@ -100,7 +92,6 @@ public class LobbyServiceIntegrationTests : IDisposable
     [Fact]
     public void AssignRoles_PersistsRolesToDatabase_AndRetrievableByNewInstance()
     {
-        // Arrange
         _mockCodeGenerator.Setup(x => x.Generate()).Returns("ROLE123");
 
         _mockGallery.Setup(x => x.GetRandomImage())
@@ -118,10 +109,8 @@ public class LobbyServiceIntegrationTests : IDisposable
         service1.AddPlayer(player1, lobbyCode);
         service1.AddPlayer(player2, lobbyCode);
 
-        // Act
         var assignment = service1.AssignRoles(lobbyCode);
 
-        // Assert
         Assert.NotNull(assignment);
         Assert.NotNull(assignment!.Describer);
         Assert.NotNull(assignment.Drawer);
@@ -145,7 +134,6 @@ public class LobbyServiceIntegrationTests : IDisposable
     [Fact]
     public void AddPlayer_SamePlayerTwice_UpdatesInsteadOfDuplicating()
     {
-        // Arrange
         _mockCodeGenerator.Setup(x => x.Generate()).Returns("DUP123");
         var service = new LobbyService(_mockGallery.Object, _lobbyRepo, _playerRepo, _mockCodeGenerator.Object, _mockLogger.Object);
         var lobby = service.CreateLobby();
@@ -153,7 +141,6 @@ public class LobbyServiceIntegrationTests : IDisposable
 
         var player = new Player("David", 7) { ConnectionId = "conn_initial" };
 
-        // Act
         service.AddPlayer(player, lobbyCode);
 
         player.ConnectionId = "conn_updated";
@@ -161,7 +148,6 @@ public class LobbyServiceIntegrationTests : IDisposable
         player.Role = PlayerRole.Artist;
         service.AddPlayer(player, lobbyCode);
 
-        // Assert
         using (var db = new AppDbContext(_dbOptions))
         {
             var dbLobby = db.Lobbies.Include(l => l.Players).First(l => l.LobbyCode == lobbyCode);
@@ -188,7 +174,6 @@ public class LobbyServiceIntegrationTests : IDisposable
         {
             _options = options;
         }
-
         public AppDbContext CreateDbContext() => new AppDbContext(_options);
     }
 }

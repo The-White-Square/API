@@ -1,16 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Net;
-using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using GameApp.Application.Models;
-using Xunit;
 
 namespace GameApp.Tests.Integration;
 
@@ -24,11 +17,10 @@ public class GalleryWebApplicationFactory : WebApplicationFactory<Program>, IDis
     {
         Directory.CreateDirectory(ImagesRoot);
 
-        builder.UseEnvironment("Development"); // or a custom name
+        builder.UseEnvironment("Development");
         builder.UseWebRoot(WebRoot);
         builder.UseContentRoot(Root);
 
-        // Force the application to use our temp images root instead of appsettings.json
         builder.ConfigureAppConfiguration((_, cfg) =>
         {
             var overrides = new Dictionary<string, string?>
@@ -60,17 +52,15 @@ public class GalleryControllerIntegrationTests : IClassFixture<GalleryWebApplica
     [Fact]
     public async Task List_Empty_Then_Upload_Then_List_NotEmpty()
     {
-        // Manual existence check + cleanup
         if (!Directory.Exists(_factory.ImagesRoot))
             Directory.CreateDirectory(_factory.ImagesRoot);
 
         var preExisting = Directory.EnumerateFiles(_factory.ImagesRoot).ToList();
-        // Optional: write to test output if needed
         Assert.True(preExisting.Count == 0, $"Images directory not empty at start: {string.Join(", ", preExisting)}");
 
         foreach (var path in preExisting)
         {
-            try { File.Delete(path); } catch { /* ignore */ }
+            try { File.Delete(path); } catch {}
         }
 
         // 1. creating empty gallery

@@ -61,7 +61,7 @@ namespace GameApp.Tests.Hubs
                 new Player { DisplayName = "Bob" },
                 new Player { DisplayName = "Charlie" }
             };
-            var lobby = new Lobby {};
+            var lobby = new Lobby { };
             lobby.Players.AddRange(players);
 
             _mockLobbyService.Setup(s => s.LobbyExists(lobbyId)).Returns(true);
@@ -94,7 +94,7 @@ namespace GameApp.Tests.Hubs
             var tool = "pen";
             var describerConn = "describer-conn";
 
-            var lobby = new Lobby {};
+            var lobby = new Lobby { };
             lobby.Players.Add(new Player { ConnectionId = describerConn, Role = PlayerRole.Explainer });
 
             _mockLobbyService.Setup(s => s.LobbyExists(lobbyId)).Returns(true);
@@ -195,7 +195,7 @@ namespace GameApp.Tests.Hubs
             var strokeId = "stroke1";
             var describerConn = "describer-conn";
 
-            var lobby = new Lobby {};
+            var lobby = new Lobby { };
             lobby.Players.Add(new Player { ConnectionId = describerConn, Role = PlayerRole.Explainer });
 
             _mockLobbyService.Setup(s => s.LobbyExists(lobbyId)).Returns(true);
